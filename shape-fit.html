@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>かたはめ パズル</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Hiragino Kaku Gothic ProN', 'メイリオ', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+        .shape-part {
+            touch-action: none;
+            cursor: grab;
+            will-change: transform, left, top;
+            transition: transform 0.15s ease;
+        }
+        .shape-part:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="bg-amber-50 h-screen w-screen flex flex-col items-center justify-between p-2 md:p-4 select-none">
+
+    <!-- Header / Mode Selectors -->
+    <header class="w-full max-w-lg flex flex-col items-center gap-2 mt-1">
+        <div class="w-full flex justify-between items-center px-2">
+            <h1 class="text-base md:text-xl font-extrabold text-amber-800 tracking-wider flex items-center gap-1">
+                🧩 かたはめ パズル
+            </h1>
+            <div class="text-xs md:text-sm font-extrabold text-amber-900 bg-amber-200 px-3 py-1 rounded-full border-2 border-amber-400">
+                おなじ かたち に はめよう！
+            </div>
+        </div>
+
+        <!-- Mode Buttons -->
+        <div class="w-full flex justify-center gap-1.5 px-2">
+            <button id="btn-easy" onclick="setMode('easy')" class="flex-1 bg-amber-500 text-white font-black py-1.5 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-600 shadow transition active:scale-95">
+                ① かんたん (3つ)
+            </button>
+            <button id="btn-normal" onclick="setMode('normal')" class="flex-1 bg-amber-200 text-amber-900 font-bold py-1.5 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-300 transition active:scale-95">
+                ② ふつう (4つ)
+            </button>
+            <button id="btn-hard" onclick="setMode('hard')" class="flex-1 bg-amber-200 text-amber-900 font-bold py-1.5 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-300 transition active:scale-95">
+                ③ たくさん (6つ)
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Game Play Area -->
+    <main id="game-board" class="w-full max-w-lg flex-1 relative my-2 flex flex-col justify-between gap-2">
+        
+        <!-- 上部：破線枠（ターゲットゾーン）エリア -->
+        <div id="target-container" class="w-full flex-1 bg-amber-100/60 rounded-3xl border-4 border-amber-300 shadow-inner flex flex-wrap items-center justify-center p-3 gap-3 relative">
+            <!-- JSで動的生成 -->
+        </div>
+
+        <!-- 区切り案内線 -->
+        <div class="w-full flex items-center justify-center gap-2 my-0.5 shrink-0">
+            <div class="h-0.5 bg-amber-300 flex-1"></div>
+            <span class="text-xs font-black text-amber-800 bg-amber-100 px-3 py-0.5 rounded-full border border-amber-300">したの かたち を うえに はめよう</span>
+            <div class="h-0.5 bg-amber-300 flex-1"></div>
+        </div>
+
+        <!-- 下部：ドラッグ用図形パーツ置き場 -->
+        <div id="source-container" class="w-full h-32 md:h-36 bg-white rounded-3xl border-4 border-amber-300 shadow-xl flex flex-wrap items-center justify-center p-2 gap-2 relative shrink-0 overflow-y-auto">
+            <!-- JSで動的生成 -->
+        </div>
+
+    </main>
+
+    <!-- Footer Controls -->
+    <footer class="w-full max-w-lg mb-1 flex justify-between items-center px-4 shrink-0">
+        <button onclick="nextProblem()" class="bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold py-2 px-5 rounded-full shadow-md text-xs md:text-sm flex items-center gap-1 active:scale-95 transition">
+            つぎの もんだい ➔
+        </button>
+        <button onclick="initGame()" class="bg-slate-600 hover:bg-slate-700 text-white font-bold py-2 px-5 rounded-full shadow-md text-xs md:text-sm flex items-center gap-1 active:scale-95 transition">
+            🔄 やりなおす
+        </button>
+    </footer>
+
+    <!-- クリアモーダル -->
+    <div id="success-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 z-[99999] p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-xs w-full text-center shadow-2xl transform scale-90 transition-transform duration-300 flex flex-col items-center">
+            <div class="text-6xl mb-3">🎉</div>
+            <h2 class="text-3xl font-extrabold text-amber-800 mb-2">できたー！</h2>
+            <p class="text-slate-600 mb-6 font-bold">カタチがぴったり はまったね！</p>
+            <button onclick="closeModal(); nextProblem();" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xl py-3.5 rounded-2xl shadow-lg transform active:scale-95 transition">
+                つぎのもんだい
+            </button>
+        </div>
+    </div>
+
+    <script>
+        class SoundFX {
+            constructor() { this.ctx = null; }
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') { this.ctx.resume(); }
+            }
+            playCorrect() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(783.99, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(now); osc.stop(now + 0.35);
+            }
+            playWrong() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(140, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.25);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(now); osc.stop(now + 0.25);
+            }
+        }
+
+        const sounds = new SoundFX();
+
+        const MASTER_SHAPES = [
+            { id: "circle", name: "まる", path: generateCirclePath() },
+            { id: "triangle", name: "さんかく", points: [{x:0.5, y:0.18}, {x:0.82, y:0.8}, {x:0.18, y:0.8}] },
+            { id: "square", name: "しかく", points: [{x:0.2, y:0.2}, {x:0.8, y:0.2}, {x:0.8, y:0.8}, {x:0.2, y:0.8}] },
+            { id: "diamond", name: "ひしがた", points: [{x:0.5, y:0.15}, {x:0.85, y:0.5}, {x:0.5, y:0.85}, {x:0.15, y:0.5}] },
+            { id: "star", name: "ほし", points: generateStarPoints() },
+            { id: "heart", name: "はーと", path: generateHeartPath() },
+            { id: "ellipse", name: "だえん", path: generateEllipsePath() },
+            { id: "pentagon", name: "ごかっけい", points: generatePolygonPoints(5) },
+            { id: "hexagon", name: "ろっかっけい", points: generatePolygonPoints(6) },
+            { id: "semicircle", name: "はんげつ", path: generateSemicirclePath() },
+            { id: "cross", name: "くろす", points: [{x:0.38, y:0.15},{x:0.62, y:0.15},{x:0.62, y:0.38},{x:0.85, y:0.38},{x:0.85, y:0.62},{x:0.62, y:0.62},{x:0.62, y:0.85},{x:0.38, y:0.85},{x:0.38, y:0.62},{x:0.15, y:0.62},{x:0.15, y:0.38},{x:0.38, y:0.38}] },
+            { id: "arrow", name: "やじるし", points: [{x:0.5, y:0.15},{x:0.8, y:0.45},{x:0.63, y:0.45},{x:0.63, y:0.85},{x:0.37, y:0.85},{x:0.37, y:0.45},{x:0.2, y:0.45}] }
+        ];
+
+        const COLOR_PALETTE = [
+            { bg: "#38bdf8", stroke: "#0284c7", borderBg: "#e0f2fe", borderStroke: "#0284c7" },
+            { bg: "#ef4444", stroke: "#b91c1c", borderBg: "#fee2e2", borderStroke: "#b91c1c" },
+            { bg: "#facc15", stroke: "#ca8a04", borderBg: "#fef9c3", borderStroke: "#ca8a04" },
+            { bg: "#10b981", stroke: "#047857", borderBg: "#d1fae5", borderStroke: "#047857" },
+            { bg: "#a855f7", stroke: "#7e22ce", borderBg: "#f3e8ff", borderStroke: "#7e22ce" },
+            { bg: "#f97316", stroke: "#c2410c", borderBg: "#ffedd5", borderStroke: "#c2410c" }
+        ];
+
+        function generateCirclePath() {
+            let d = ""; const cx = 50, cy = 50, r = 35;
+            for (let i = 0; i <= 36; i++) {
+                const a = (i / 36) * Math.PI * 2;
+                d += (i === 0 ? "M " : " L ") + (cx + r * Math.cos(a)) + " " + (cy + r * Math.sin(a));
+            }
+            return d + " Z";
+        }
+        function generateStarPoints() {
+            const pts = []; const cx = 0.5, cy = 0.5, outerR = 0.38, innerR = 0.17;
+            for (let i = 0; i < 10; i++) {
+                const a = -Math.PI / 2 + (i * Math.PI / 5);
+                const r = i % 2 === 0 ? outerR : innerR;
+                pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+            }
+            return pts;
+        }
+        function generateHeartPath() {
+            let d = "";
+            for (let i = 0; i <= 40; i++) {
+                const t = (i / 40) * Math.PI * 2;
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                d += (i === 0 ? "M " : " L ") + (50 + x * 2.2) + " " + (52 + y * 2.2);
+            }
+            return d + " Z";
+        }
+        function generateEllipsePath() {
+            let d = ""; const cx = 50, cy = 50, rx = 40, ry = 24;
+            for (let i = 0; i <= 36; i++) {
+                const a = (i / 36) * Math.PI * 2;
+                d += (i === 0 ? "M " : " L ") + (cx + rx * Math.cos(a)) + " " + (cy + ry * Math.sin(a));
+            }
+            return d + " Z";
+        }
+        function generatePolygonPoints(sides) {
+            const pts = []; const cx = 0.5, cy = 0.5, r = 0.35;
+            for (let i = 0; i < sides; i++) {
+                const a = -Math.PI / 2 + (i * 2 * Math.PI / sides);
+                pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+            }
+            return pts;
+        }
+        function generateSemicirclePath() {
+            let d = "M 50 15";
+            for (let i = 0; i <= 18; i++) {
+                const a = -Math.PI / 2 + (i / 18) * Math.PI;
+                d += " L " + (50 + 35 * Math.cos(a)) + " " + (50 + 35 * Math.sin(a));
+            }
+            return d + " Z";
+        }
+
+        function getSVGPath(shape) {
+            if (shape.path) return shape.path;
+            if (shape.points) {
+                return shape.points.reduce((acc, p, idx) => acc + (idx === 0 ? `M ${p.x * 100} ${p.y * 100}` : ` L ${p.x * 100} ${p.y * 100}`), '') + " Z";
+            }
+            return '';
+        }
+
+        let currentMode = 'easy';
+        let activeShapes = [];
+        let remainingCount = 0;
+        let activePart = null;
+        let activeTouchId = null;
+        let dragOffset = { x: 0, y: 0 };
+
+        const targetContainerEl = document.getElementById('target-container');
+        const sourceContainerEl = document.getElementById('source-container');
+        const bodyEl = document.body;
+
+        function setMode(mode) {
+            currentMode = mode;
+            ['easy', 'normal', 'hard'].forEach(m => {
+                const btn = document.getElementById(`btn-${m}`);
+                if (m === mode) {
+                    btn.className = "flex-1 bg-amber-500 text-white font-black py-1.5 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-600 shadow transition active:scale-95";
+                } else {
+                    btn.className = "flex-1 bg-amber-200 text-amber-900 font-bold py-1.5 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-300 transition active:scale-95";
+                }
+            });
+            initGame();
+        }
+
+        function nextProblem() {
+            initGame();
+        }
+
+        function initGame() {
+            targetContainerEl.innerHTML = '';
+            sourceContainerEl.innerHTML = '';
+
+            const countMap = { easy: 3, normal: 4, hard: 6 };
+            const count = countMap[currentMode];
+
+            const shuffled = [...MASTER_SHAPES].sort(() => 0.5 - Math.random());
+            activeShapes = shuffled.slice(0, count).map((shape, idx) => ({
+                ...shape,
+                color: COLOR_PALETTE[idx % COLOR_PALETTE.length]
+            }));
+
+            remainingCount = count;
+
+            const cardSizeClass = currentMode === 'hard' ? 'w-20 h-20 md:w-24 md:h-24' : currentMode === 'normal' ? 'w-24 h-24 md:w-28 md:h-28' : 'w-28 h-28 md:w-32 md:h-32';
+
+            activeShapes.forEach((shape) => {
+                const slot = document.createElement('div');
+                slot.className = `target-slot ${cardSizeClass} bg-amber-200/50 rounded-2xl border-4 border-dashed border-amber-400 flex items-center justify-center relative shadow-sm transition-all duration-300 shrink-0`;
+                slot.dataset.id = shape.id;
+
+                const pathD = getSVGPath(shape);
+                slot.innerHTML = `
+                    <svg class="w-4/5 h-4/5 pointer-events-none" viewBox="0 0 100 100">
+                        <path d="${pathD}" fill="${shape.color.borderBg}" stroke="${shape.color.borderStroke}" stroke-width="4" stroke-dasharray="4,6" stroke-linejoin="round" stroke-linecap="round" />
+                    </svg>
+                `;
+                targetContainerEl.appendChild(slot);
+            });
+
+            const sourceShapes = [...activeShapes].sort(() => 0.5 - Math.random());
+            
+            sourceShapes.forEach((shape) => {
+                const part = document.createElement('div');
+                part.className = `shape-part ${cardSizeClass} flex items-center justify-center relative shrink-0 filter drop-shadow-md`;
+                part.dataset.id = shape.id;
+
+                const pathD = getSVGPath(shape);
+                part.innerHTML = `
+                    <svg class="w-4/5 h-4/5 pointer-events-none" viewBox="0 0 100 100">
+                        <path d="${pathD}" fill="${shape.color.bg}" stroke="${shape.color.stroke}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" />
+                    </svg>
+                `;
+
+                addDragEvents(part);
+                sourceContainerEl.appendChild(part);
+            });
+        }
+
+        // --- 素早いドラッグでも外れない高速追従ドラッグ処理 ---
+        function addDragEvents(part) {
+            part.addEventListener('pointerdown', (e) => {
+                if (part.classList.contains('matched') || activePart) return;
+                sounds.init();
+                e.preventDefault();
+
+                activePart = part;
+                activeTouchId = e.pointerId;
+                
+                // イベントキャプチャを明示的に設定
+                try { part.setPointerCapture(activeTouchId); } catch(err){}
+
+                const partRect = part.getBoundingClientRect();
+
+                part.style.position = 'absolute';
+                part.style.left = `${partRect.left}px`;
+                part.style.top = `${partRect.top}px`;
+                part.style.zIndex = '99999';
+                part.style.transform = 'scale(1.15)';
+                bodyEl.appendChild(part);
+
+                dragOffset.x = e.clientX - partRect.left - (partRect.width / 2);
+                dragOffset.y = e.clientY - partRect.top - (partRect.height / 2);
+
+                updatePartPosition(e.clientX, e.clientY);
+            });
+        }
+
+        // window全体で移動・ドロップを監視（素早く動かしても追従が途切れない）
+        window.addEventListener('pointermove', (e) => {
+            if (!activePart || e.pointerId !== activeTouchId) return;
+            e.preventDefault();
+            updatePartPosition(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (!activePart || e.pointerId !== activeTouchId) return;
+            handleDrop(e);
+        });
+
+        window.addEventListener('pointercancel', (e) => {
+            if (!activePart || e.pointerId !== activeTouchId) return;
+            handleDrop(e);
+        });
+
+        function updatePartPosition(clientX, clientY) {
+            if (!activePart) return;
+            const x = clientX - dragOffset.x - (activePart.offsetWidth / 2);
+            const y = clientY - dragOffset.y - (activePart.offsetHeight / 2);
+
+            activePart.style.left = `${x}px`;
+            activePart.style.top = `${y}px`;
+        }
+
+        function handleDrop(e) {
+            if (!activePart) return;
+            e.preventDefault();
+
+            const part = activePart;
+            part.style.transform = 'scale(1)';
+            part.style.zIndex = '10';
+
+            const partId = part.dataset.id;
+            const partRect = part.getBoundingClientRect();
+            const partCenterX = partRect.left + partRect.width / 2;
+            const partCenterY = partRect.top + partRect.height / 2;
+
+            const targetSlots = document.querySelectorAll('.target-slot');
+            let matchedSlot = null;
+
+            targetSlots.forEach(slot => {
+                const slotRect = slot.getBoundingClientRect();
+                const slotCenterX = slotRect.left + slotRect.width / 2;
+                const slotCenterY = slotRect.top + slotRect.height / 2;
+
+                const dx = partCenterX - slotCenterX;
+                const dy = partCenterY - slotCenterY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // スロット幅の 30% 以内に中心が近づいた場合のみ吸い込みOK
+                const maxAllowedDistance = slotRect.width * 0.3;
+
+                if (distance <= maxAllowedDistance) {
+                    matchedSlot = slot;
+                }
+            });
+
+            if (matchedSlot) {
+                const slotId = matchedSlot.dataset.id;
+                if (partId === slotId && !matchedSlot.classList.contains('filled')) {
+                    sounds.playCorrect();
+                    part.classList.add('matched');
+                    part.style.pointerEvents = 'none';
+                    matchedSlot.classList.add('filled');
+
+                    matchedSlot.className = matchedSlot.className.replace('border-dashed border-amber-400 bg-amber-200/50', 'border-solid border-emerald-400 bg-emerald-100/80 scale-105');
+
+                    matchedSlot.appendChild(part);
+                    part.style.position = 'relative';
+                    part.style.left = '0';
+                    part.style.top = '0';
+                    part.style.zIndex = '1';
+
+                    remainingCount--;
+                    if (remainingCount === 0) {
+                        setTimeout(() => {
+                            confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+                            document.getElementById('success-modal').classList.remove('opacity-0', 'pointer-events-none');
+                        }, 300);
+                    }
+                } else {
+                    sounds.playWrong();
+                    returnToSourceContainer(part);
+                }
+            } else {
+                returnToSourceContainer(part);
+            }
+
+            try { part.releasePointerCapture(activeTouchId); } catch(err){}
+            activePart = null;
+            activeTouchId = null;
+        }
+
+        function returnToSourceContainer(part) {
+            part.style.position = 'relative';
+            part.style.left = '0';
+            part.style.top = '0';
+            sourceContainerEl.appendChild(part);
+        }
+
+        function closeModal() {
+            document.getElementById('success-modal').classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        window.addEventListener('load', () => {
+            initMode('easy');
+        });
+    </script>
+</body>
+</html>

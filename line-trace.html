@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>せんなぞりゲーム</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Hiragino Kaku Gothic ProN', 'メイリオ', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+
+        .car-element {
+            touch-action: none;
+            cursor: grab;
+            will-change: transform;
+            z-index: 50;
+            top: 0;
+            left: 0;
+        }
+
+        .car-element:active {
+            cursor: grabbing;
+        }
+
+        .snap-back {
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.27) !important;
+        }
+    </style>
+</head>
+<body class="bg-amber-50 h-screen w-screen flex flex-col items-center justify-between p-2 md:p-4 select-none">
+
+    <!-- Header / Progress Bar & Mode Selector -->
+    <header class="w-full max-w-lg text-center flex flex-col items-center gap-2 mt-1">
+        <div class="w-full flex justify-between items-center px-2">
+            <h1 class="text-base md:text-xl font-extrabold text-amber-800 tracking-wider flex items-center gap-1">
+                🚗 せん なぞり
+            </h1>
+            <div id="shape-title" class="hidden text-sm md:text-base font-extrabold text-amber-900 bg-amber-200 px-3 py-0.5 rounded-full border border-amber-400">
+                <!-- Shape Name in Hiragana -->
+            </div>
+            <div id="stage-counter" class="bg-amber-200 text-amber-900 font-black px-3 py-1 rounded-full text-xs md:text-sm border-2 border-amber-400">
+                だい 1 / 12 もん
+            </div>
+        </div>
+
+        <!-- Mode Buttons -->
+        <div class="w-full flex justify-center gap-1.5 px-2">
+            <button id="mode-line" class="mode-btn flex-1 bg-amber-500 text-white font-black py-1 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-600 shadow transition active:scale-95">
+                ① ちょくせん
+            </button>
+            <button id="mode-zigzag" class="mode-btn flex-1 bg-amber-200 text-amber-900 font-bold py-1 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-300 transition active:scale-95">
+                ② ジグザグ
+            </button>
+            <button id="mode-shape" class="mode-btn flex-1 bg-amber-200 text-amber-900 font-bold py-1 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-300 transition active:scale-95">
+                ③ かたち
+            </button>
+        </div>
+        
+        <!-- Progress Dots -->
+        <div id="progress-dots" class="flex gap-1 justify-center w-full max-w-xs">
+            <!-- Dots auto generated -->
+        </div>
+    </header>
+
+    <!-- Canvas Play Area (Flex中央寄せを削除して絶対配置を確実に機能させます) -->
+    <main class="w-full max-w-lg flex-1 relative my-2 bg-white rounded-3xl border-4 border-amber-300 shadow-xl overflow-hidden">
+	<!-- SVG for Smooth Path Rendering -->
+        <svg id="game-svg" class="absolute inset-0 w-full h-full pointer-events-none">
+            <!-- Outermost guide path (shadow/border) -->
+            <path id="path-border" stroke="#cbd5e1" stroke-width="64" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            <!-- Active trace line -->
+            <path id="path-guide" stroke="#38bdf8" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            <g id="path-arrows"></g>
+            <!-- Trail drawn by user -->
+            <path id="path-trail" stroke="#f43f5e" stroke-width="28" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+        </svg>
+
+        <!-- Start Flag Marker -->
+        <div id="start-marker" class="absolute pointer-events-none transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
+            <span class="text-[10px] font-black bg-emerald-500 text-white px-1.5 py-0.5 rounded-full shadow">スタート</span>
+            <div class="w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white shadow-md animate-ping"></div>
+        </div>
+
+        <!-- Goal Flag Marker (強調) -->
+        <div id="goal-marker" class="absolute pointer-events-none transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
+            <span class="text-6xl animate-bounce filter drop-shadow">🏁</span>
+            <span class="text-sm font-black bg-rose-600 text-white px-3 py-1 rounded-full shadow-md border border-white">ゴール</span>
+        </div>
+
+        <!-- Car Container -->
+        <div id="car" class="car-element absolute w-32 h-32 flex items-center justify-center filter drop-shadow-lg z-50">
+            <!-- SVG Car Icon -->
+            <svg class="w-full h-full pointer-events-none" viewBox="0 0 100 100">
+                <rect x="15" y="45" width="70" height="30" rx="10" fill="#EF4444" stroke="#991B1B" stroke-width="4"/>
+                <path d="M 28 45 L 38 22 L 68 22 L 78 45 Z" fill="#FCA5A5" stroke="#991B1B" stroke-width="4"/>
+                <circle cx="32" cy="75" r="11" fill="#1E293B" stroke="#000" stroke-width="3"/>
+                <circle cx="32" cy="75" r="4" fill="#94A3B8"/>
+                <circle cx="68" cy="75" r="11" fill="#1E293B" stroke="#000" stroke-width="3"/>
+                <circle cx="68" cy="75" r="4" fill="#94A3B8"/>
+                <circle cx="73" cy="33" r="5" fill="#E0F2FE"/>
+                <circle cx="45" cy="33" r="5" fill="#E0F2FE"/>
+                <circle cx="22" cy="52" r="4" fill="#FEF08A"/>
+            </svg>
+        </div>
+    </main>
+
+    <!-- Bottom Controls -->
+    <footer class="w-full max-w-lg mb-1 flex justify-between items-center px-4">
+        <button id="skip-btn" class="bg-amber-400 hover:bg-amber-500 text-amber-950 font-bold py-2 px-4 rounded-full shadow-md text-xs md:text-sm flex items-center gap-1 active:scale-95 transition">
+            つぎのもんへ ➔
+        </button>
+        <button id="reset-btn" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded-full shadow-md text-xs md:text-sm flex items-center gap-1 active:scale-95 transition">
+            🔄 やりなおす
+        </button>
+    </footer>
+
+    <!-- All Clear Modal -->
+    <div id="success-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 z-[9999] p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-xs w-full text-center shadow-2xl transform scale-90 transition-transform duration-300 flex flex-col items-center">
+            <div class="text-6xl mb-3">👑</div>
+            <h2 class="text-3xl font-extrabold text-amber-800 mb-2">ぜんぶ クリア！</h2>
+            <p class="text-slate-600 mb-6 font-bold">運転がとっても じょうずだね！</p>
+            <button id="modal-reset-btn" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xl py-4 rounded-2xl shadow-lg transform active:scale-95 transition">
+                もういっかい！
+            </button>
+        </div>
+    </div>
+
+    <!-- Sound & Game Engine -->
+    <script>
+        // --- Web Audio API Synth Sound Effects ---
+        class SoundFX {
+            constructor() { this.ctx = null; }
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') { this.ctx.resume(); }
+            }
+            playCorrect() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc1 = this.ctx.createOscillator();
+                const gain1 = this.ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(1318.51, now);
+                gain1.gain.setValueAtTime(0.3, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                osc1.connect(gain1); gain1.connect(this.ctx.destination);
+                osc1.start(now); osc1.stop(now + 0.2);
+
+                const osc2 = this.ctx.createOscillator();
+                const gain2 = this.ctx.createGain();
+                osc2.type = 'sine';
+                osc2.frequency.setValueAtTime(1975.53, now + 0.12);
+                gain2.gain.setValueAtTime(0.35, now + 0.12);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                osc2.connect(gain2); gain2.connect(this.ctx.destination);
+                osc2.start(now + 0.12); osc2.stop(now + 0.4);
+            }
+            playWrong() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(140, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.25);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(now); osc.stop(now + 0.25);
+            }
+            playVictory() {
+                this.init();
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const now = this.ctx.currentTime + idx * 0.1;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(now); osc.stop(now + 0.35);
+                });
+            }
+        }
+
+        const sounds = new SoundFX();
+
+        function generateRotatedLines() {
+            const result = [];
+            const cx = 0.5, cy = 0.5;
+            const r = 0.35;
+            for (let i = 0; i < 12; i++) {
+                const angleDeg = i * 30;
+                const radStart = (angleDeg - 90) * Math.PI / 180;
+                const radEnd = (angleDeg + 90) * Math.PI / 180;
+                result.push({
+                    name: `ちょくせん ${angleDeg}°`,
+                    points: [
+                        { x: cx + r * Math.cos(radStart), y: cy + r * Math.sin(radStart) },
+                        { x: cx + r * Math.cos(radEnd), y: cy + r * Math.sin(radEnd) }
+                    ]
+                });
+            }
+            return result;
+        }
+
+        const LINE_COURSES = generateRotatedLines();
+
+        const ZIGZAG_BANK = {
+            rightAngle: [
+                { points: [{x:0.2, y:0.2}, {x:0.2, y:0.8}, {x:0.8, y:0.8}] },
+                { points: [{x:0.8, y:0.2}, {x:0.8, y:0.8}, {x:0.2, y:0.8}] },
+                { points: [{x:0.2, y:0.2}, {x:0.8, y:0.2}, {x:0.8, y:0.8}] },
+                { points: [{x:0.8, y:0.2}, {x:0.2, y:0.2}, {x:0.2, y:0.8}] },
+                { points: [{x:0.2, y:0.8}, {x:0.2, y:0.2}, {x:0.8, y:0.2}] },
+                { points: [{x:0.8, y:0.8}, {x:0.8, y:0.2}, {x:0.2, y:0.2}] }
+            ],
+            arcCurve: [
+                { type: "arc", points: [{x:0.2, y:0.8}, {x:0.5, y:0.2}, {x:0.8, y:0.8}] },
+                { type: "arc", points: [{x:0.2, y:0.2}, {x:0.5, y:0.8}, {x:0.8, y:0.2}] },
+                { type: "arc", points: [{x:0.2, y:0.2}, {x:0.8, y:0.5}, {x:0.2, y:0.8}] },
+                { type: "arc", points: [{x:0.8, y:0.2}, {x:0.2, y:0.5}, {x:0.8, y:0.8}] },
+                { type: "arc", points: [{x:0.25, y:0.75}, {x:0.5, y:0.15}, {x:0.75, y:0.75}] },
+                { type: "arc", points: [{x:0.15, y:0.5}, {x:0.85, y:0.15}, {x:0.85, y:0.85}] }
+            ],
+            sharpAngle: [
+                { points: [{x:0.15, y:0.3}, {x:0.5, y:0.8}, {x:0.5, y:0.2}, {x:0.85, y:0.7}] },
+                { points: [{x:0.15, y:0.7}, {x:0.5, y:0.2}, {x:0.5, y:0.8}, {x:0.85, y:0.3}] },
+                { points: [{x:0.2, y:0.2}, {x:0.4, y:0.85}, {x:0.6, y:0.15}, {x:0.8, y:0.8}] },
+                { points: [{x:0.2, y:0.8}, {x:0.4, y:0.15}, {x:0.6, y:0.85}, {x:0.8, y:0.2}] },
+                { points: [{x:0.15, y:0.5}, {x:0.45, y:0.2}, {x:0.75, y:0.8}, {x:0.85, y:0.3}] },
+                { points: [{x:0.15, y:0.5}, {x:0.45, y:0.8}, {x:0.75, y:0.2}, {x:0.85, y:0.7}] }
+            ],
+            multiWave: [
+                { type: "wave", points: [{x:0.15, y:0.5}, {x:0.35, y:0.15}, {x:0.65, y:0.85}, {x:0.85, y:0.5}] },
+                { type: "wave", points: [{x:0.15, y:0.5}, {x:0.35, y:0.85}, {x:0.65, y:0.15}, {x:0.85, y:0.5}] },
+                { points: [{x:0.15, y:0.2}, {x:0.35, y:0.8}, {x:0.65, y:0.2}, {x:0.85, y:0.8}] },
+                { points: [{x:0.15, y:0.8}, {x:0.35, y:0.2}, {x:0.65, y:0.8}, {x:0.85, y:0.2}] },
+                { type: "wave", points: [{x:0.5, y:0.15}, {x:0.15, y:0.35}, {x:0.85, y:0.65}, {x:0.5, y:0.85}] },
+                { type: "wave", points: [{x:0.5, y:0.15}, {x:0.85, y:0.35}, {x:0.15, y:0.65}, {x:0.5, y:0.85}] }
+            ]
+        };
+
+        const SHAPE_COURSES = [
+            {
+                name: "まる",
+                points: (() => {
+                    const pts = [];
+                    const cx = 0.5, cy = 0.5, r = 0.32;
+                    for (let i = 0; i <= 32; i++) {
+                        const angle = -Math.PI / 2 + 0.2 + (i / 32) * (Math.PI * 2 - 0.4);
+                        pts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+                    }
+                    return pts;
+                })()
+            },
+            {
+                name: "さんかく",
+                points: [{ x: 0.5, y: 0.18 }, { x: 0.82, y: 0.8 }, { x: 0.18, y: 0.8 }, { x: 0.45, y: 0.2 }]
+            },
+            {
+                name: "しかく",
+                points: [{ x: 0.2, y: 0.2 }, { x: 0.8, y: 0.2 }, { x: 0.8, y: 0.8 }, { x: 0.2, y: 0.8 }, { x: 0.2, y: 0.26 }]
+            },
+            {
+                name: "ひしがた",
+                points: [{ x: 0.5, y: 0.15 }, { x: 0.85, y: 0.5 }, { x: 0.5, y: 0.85 }, { x: 0.15, y: 0.5 }, { x: 0.45, y: 0.18 }]
+            },
+            {
+                name: "ほし",
+                points: (() => {
+                    const pts = [];
+                    const cx = 0.5, cy = 0.52, outerR = 0.34, innerR = 0.15;
+                    for (let i = 0; i < 10; i++) {
+                        const angle = -Math.PI / 2 + (i * Math.PI / 5);
+                        const r = i % 2 === 0 ? outerR : innerR;
+                        pts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+                    }
+                    pts.push({ x: cx, y: cy - outerR + 0.05 });
+                    return pts;
+                })()
+            },
+            {
+                name: "はーと",
+                points: (() => {
+                    const pts = [];
+                    for (let i = 0; i <= 40; i++) {
+                        const t = (i / 40) * Math.PI * 2;
+                        const x = 16 * Math.pow(Math.sin(t), 3);
+                        const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                        pts.push({ x: 0.5 + (x / 38), y: 0.48 + (y / 38) });
+                    }
+                    return pts;
+                })()
+            },
+            {
+                name: "だえん",
+                points: (() => {
+                    const pts = [];
+                    const cx = 0.5, cy = 0.5, rx = 0.38, ry = 0.22;
+                    for (let i = 0; i <= 32; i++) {
+                        const angle = -Math.PI / 2 + 0.2 + (i / 32) * (Math.PI * 2 - 0.4);
+                        pts.push({ x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle) });
+                    }
+                    return pts;
+                })()
+            },
+            {
+                name: "ごかっけい",
+                points: (() => {
+                    const pts = [];
+                    const cx = 0.5, cy = 0.52, r = 0.32;
+                    for (let i = 0; i < 5; i++) {
+                        const angle = -Math.PI / 2 + (i * 2 * Math.PI / 5);
+                        pts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+                    }
+                    pts.push({ x: cx, y: cy - r + 0.05 });
+                    return pts;
+                })()
+            },
+            {
+                name: "ろっかっけい",
+                points: (() => {
+                    const pts = [];
+                    const cx = 0.5, cy = 0.5, r = 0.32;
+                    for (let i = 0; i < 6; i++) {
+                        const angle = -Math.PI / 2 + (i * 2 * Math.PI / 6);
+                        pts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+                    }
+                    pts.push({ x: cx, y: cy - r + 0.05 });
+                    return pts;
+                })()
+            },
+            {
+                name: "はんげつ",
+                points: (() => {
+                    const pts = [];
+                    const cx = 0.5, cy = 0.5, r = 0.32;
+                    for (let i = 0; i <= 16; i++) {
+                        const angle = -Math.PI / 2 + (i / 16) * Math.PI;
+                        pts.push({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+                    }
+                    pts.push({ x: cx, y: cy - r + 0.05 });
+                    return pts;
+                })()
+            },
+            {
+                name: "くろす",
+                points: [
+                    { x: 0.38, y: 0.15 }, { x: 0.62, y: 0.15 }, { x: 0.62, y: 0.38 }, { x: 0.85, y: 0.38 },
+                    { x: 0.85, y: 0.62 }, { x: 0.62, y: 0.62 }, { x: 0.62, y: 0.85 }, { x: 0.38, y: 0.85 },
+                    { x: 0.38, y: 0.62 }, { x: 0.15, y: 0.62 }, { x: 0.15, y: 0.38 }, { x: 0.38, y: 0.38 },
+                    { x: 0.38, y: 0.22 }
+                ]
+            },
+            {
+                name: "やじるし",
+                points: [
+                    { x: 0.5, y: 0.15 }, { x: 0.8, y: 0.45 }, { x: 0.63, y: 0.45 },
+                    { x: 0.63, y: 0.85 }, { x: 0.37, y: 0.85 }, { x: 0.37, y: 0.45 },
+                    { x: 0.2, y: 0.45 }, { x: 0.46, y: 0.19 }
+                ]
+            }
+        ];
+
+        function getRandom3(arr) {
+            const shuffled = [...arr].sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, 3);
+        }
+
+        function buildZigzagCourses() {
+            const list = [
+                ...getRandom3(ZIGZAG_BANK.rightAngle),
+                ...getRandom3(ZIGZAG_BANK.arcCurve),
+                ...getRandom3(ZIGZAG_BANK.sharpAngle),
+                ...getRandom3(ZIGZAG_BANK.multiWave)
+            ];
+            return list.map((item, idx) => ({
+                name: `ジグザグ ${idx + 1}`,
+                type: item.type || "linear",
+                points: item.points
+            }));
+        }
+
+        let currentMode = 'line';
+        let currentCourses = [];
+        let stageIndex = 0;
+        let isDragging = false;
+        let startPos = { x: 0, y: 0 };
+        let currentCarCenter = { x: 0, y: 0 };
+        let goalPos = { x: 0, y: 0 };
+        let sampledPathPoints = [];
+        let pathLength = 0;
+        
+        let checkpointFlags = { cp25: false, cp50: false, cp75: false };
+
+        const carEl = document.getElementById('car');
+        const pathBorderEl = document.getElementById('path-border');
+        const pathGuideEl = document.getElementById('path-guide');
+        const pathTrailEl = document.getElementById('path-trail');
+        const pathArrowsEl = document.getElementById('path-arrows');
+        const startMarkerEl = document.getElementById('start-marker');
+        const goalMarkerEl = document.getElementById('goal-marker');
+        const stageCounterEl = document.getElementById('stage-counter');
+        const shapeTitleEl = document.getElementById('shape-title');
+        const progressDotsEl = document.getElementById('progress-dots');
+        const mainEl = document.querySelector('main');
+
+        const modeLineBtn = document.getElementById('mode-line');
+        const modeZigzagBtn = document.getElementById('mode-zigzag');
+        const modeShapeBtn = document.getElementById('mode-shape');
+
+        function initMode(mode) {
+            currentMode = mode;
+            stageIndex = 0;
+
+            [modeLineBtn, modeZigzagBtn, modeShapeBtn].forEach(btn => {
+                btn.className = "mode-btn flex-1 bg-amber-200 text-amber-900 font-bold py-1 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-300 transition active:scale-95";
+            });
+
+            if (mode === 'line') {
+                currentCourses = LINE_COURSES;
+                modeLineBtn.className = "mode-btn flex-1 bg-amber-500 text-white font-black py-1 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-600 shadow transition active:scale-95";
+                shapeTitleEl.classList.add('hidden');
+            } else if (mode === 'zigzag') {
+                currentCourses = buildZigzagCourses();
+                modeZigzagBtn.className = "mode-btn flex-1 bg-amber-500 text-white font-black py-1 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-600 shadow transition active:scale-95";
+                shapeTitleEl.classList.add('hidden');
+            } else {
+                currentCourses = SHAPE_COURSES;
+                modeShapeBtn.className = "mode-btn flex-1 bg-amber-500 text-white font-black py-1 px-2 rounded-xl text-xs md:text-sm border-2 border-amber-600 shadow transition active:scale-95";
+                shapeTitleEl.classList.remove('hidden');
+            }
+
+            renderProgressDots();
+            loadStage(0);
+        }
+
+        function renderProgressDots() {
+            progressDotsEl.innerHTML = '';
+            for (let i = 0; i < currentCourses.length; i++) {
+                const dot = document.createElement('div');
+                dot.id = `dot-${i}`;
+                dot.className = `h-2 rounded-full flex-1 transition-all ${i === 0 ? 'bg-amber-600 scale-110' : 'bg-amber-200'}`;
+                progressDotsEl.appendChild(dot);
+            }
+        }
+
+        function updateProgressDots() {
+            for (let i = 0; i < currentCourses.length; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (!dot) continue;
+                if (i < stageIndex) {
+                    dot.className = "h-2 rounded-full flex-1 bg-emerald-500";
+                } else if (i === stageIndex) {
+                    dot.className = "h-2 rounded-full flex-1 bg-amber-600 scale-110";
+                } else {
+                    dot.className = "h-2 rounded-full flex-1 bg-amber-200";
+                }
+            }
+        }
+
+        function generatePathD(course, width, height) {
+            const pts = course.points.map(p => ({ x: p.x * width, y: p.y * height }));
+            if (pts.length < 2) return '';
+
+            if (course.type === 'arc' && pts.length === 3) {
+                return `M ${pts[0].x} ${pts[0].y} Q ${pts[1].x} ${pts[1].y} ${pts[2].x} ${pts[2].y}`;
+            }
+
+            if (course.type === 'wave' && pts.length >= 4) {
+                let d = `M ${pts[0].x} ${pts[0].y}`;
+                for (let i = 1; i < pts.length - 1; i++) {
+                    const xc = (pts[i].x + pts[i + 1].x) / 2;
+                    const yc = (pts[i].y + pts[i + 1].y) / 2;
+                    d += ` Q ${pts[i].x} ${pts[i].y} ${xc} ${yc}`;
+                }
+                d += ` L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
+                return d;
+            }
+
+            return pts.reduce((acc, p, idx) => acc + (idx === 0 ? `M ${p.x} ${p.y}` : ` L ${p.x} ${p.y}`), '');
+        }
+
+        function loadStage(index) {
+            stageIndex = index;
+            checkpointFlags = { cp25: false, cp50: false, cp75: false };
+            stageCounterEl.innerText = `だい ${stageIndex + 1} / ${currentCourses.length} もん`;
+            updateProgressDots();
+
+            const course = currentCourses[stageIndex];
+
+            if (currentMode === 'shape') {
+                shapeTitleEl.innerText = course.name;
+            }
+
+            const bounds = mainEl.getBoundingClientRect();
+            const width = bounds.width;
+            const height = bounds.height;
+
+            const pathD = generatePathD(course, width, height);
+            pathBorderEl.setAttribute('d', pathD);
+            pathGuideEl.setAttribute('d', pathD);
+            pathTrailEl.setAttribute('d', `M 0 0`);
+
+            sampledPathPoints = [];
+            const totalLen = pathGuideEl.getTotalLength();
+            pathLength = totalLen;
+            const sampleStep = 8;
+            for (let s = 0; s <= totalLen; s += sampleStep) {
+                const pt = pathGuideEl.getPointAtLength(s);
+                sampledPathPoints.push({ x: pt.x, y: pt.y, dist: s });
+            }
+
+            const startPt = pathGuideEl.getPointAtLength(0);
+            const goalPt = pathGuideEl.getPointAtLength(totalLen);
+
+            startPos = { x: startPt.x, y: startPt.y };
+            goalPos = { x: goalPt.x, y: goalPt.y };
+
+            startMarkerEl.style.left = `${startPos.x}px`;
+            startMarkerEl.style.top = `${startPos.y}px`;
+
+            goalMarkerEl.style.left = `${goalPos.x}px`;
+            goalMarkerEl.style.top = `${goalPos.y}px`;
+
+goalMarkerEl.style.left = `${goalPos.x}px`;
+            goalMarkerEl.style.top = `${goalPos.y}px`;
+
+            // 車の中心（startPos.x, startPos.y）から半径40pxを差し引いて完全位置あわせ
+            moveCarToCenter(startPos.x, startPos.y, false);
+
+            // 進行方向の矢印を描画
+            pathArrowsEl.innerHTML = '';
+            const arrowSpacing = 85;
+            for (let d = 60; d < totalLen - 60; d += arrowSpacing) {
+                const p1 = pathGuideEl.getPointAtLength(d);
+                const p2 = pathGuideEl.getPointAtLength(Math.min(d + 5, totalLen));
+                const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x) * (180 / Math.PI);
+
+                const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                arrow.setAttribute('d', 'M -10 -7 L 4 0 L -10 7 M 4 0 L -14 0');
+                arrow.setAttribute('stroke', 'rgba(255, 255, 255, 0.85)');
+                arrow.setAttribute('stroke-width', '4.5');
+                arrow.setAttribute('stroke-linecap', 'round');
+                arrow.setAttribute('stroke-linejoin', 'round');
+                arrow.setAttribute('fill', 'none');
+                arrow.setAttribute('transform', `translate(${p1.x}, ${p1.y}) rotate(${angle})`);
+                pathArrowsEl.appendChild(arrow);
+            }
+        }
+
+        function moveCarToCenter(cx, cy, animate = false) {
+            currentCarCenter = { x: cx, y: cy };
+            const renderX = cx - 64;
+            const renderY = cy - 64;
+            if (animate) {
+                carEl.classList.add('snap-back');
+                carEl.style.transform = `translate3d(${renderX}px, ${renderY}px, 0)`;
+                setTimeout(() => carEl.classList.remove('snap-back'), 300);
+            } else {
+                carEl.style.transform = `translate3d(${renderX}px, ${renderY}px, 0)`;
+            }
+        }
+
+        function getDistanceToPath(px, py) {
+            let minSqDist = Infinity;
+            let closestPt = sampledPathPoints[0];
+
+            for (let i = 0; i < sampledPathPoints.length; i++) {
+                const pt = sampledPathPoints[i];
+                const dx = px - pt.x;
+                const dy = py - pt.y;
+                const sqDist = dx * dx + dy * dy;
+                if (sqDist < minSqDist) {
+                    minSqDist = sqDist;
+                    closestPt = pt;
+                }
+            }
+
+            return {
+                distance: Math.sqrt(minSqDist),
+                pathDist: closestPt ? closestPt.dist : 0
+            };
+        }
+
+        function resetCarToStart() {
+            sounds.playWrong();
+            checkpointFlags = { cp25: false, cp50: false, cp75: false };
+            moveCarToCenter(startPos.x, startPos.y, true);
+            pathTrailEl.setAttribute('d', `M 0 0`);
+        }
+
+        function checkGoalReached(cx, cy, currentPathDist) {
+            const dx = cx - goalPos.x;
+            const dy = cy - goalPos.y;
+            const distToGoal = Math.sqrt(dx * dx + dy * dy);
+
+            const isFullyTraced = checkpointFlags.cp25 && checkpointFlags.cp50 && checkpointFlags.cp75;
+
+            if (distToGoal < 80 && isFullyTraced) {
+                isDragging = false;
+                sounds.playCorrect();
+                confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
+
+                setTimeout(() => {
+                    if (stageIndex + 1 < currentCourses.length) {
+                        loadStage(stageIndex + 1);
+                    } else {
+                        sounds.playVictory();
+                        confetti({ particleCount: 150, spread: 100, origin: { y: 0.5 } });
+                        document.getElementById('success-modal').classList.remove('opacity-0', 'pointer-events-none');
+                    }
+                }, 400);
+            }
+        }
+
+        function handleStart(e) {
+            e.preventDefault();
+            sounds.init();
+            const touch = e.touches ? e.touches[0] : e;
+            const bounds = mainEl.getBoundingClientRect();
+            const x = touch.clientX - bounds.left;
+            const y = touch.clientY - bounds.top;
+
+            const dx = x - currentCarCenter.x;
+            const dy = y - currentCarCenter.y;
+            if (Math.sqrt(dx * dx + dy * dy) < 80) {
+                isDragging = true;
+                checkpointFlags = { cp25: false, cp50: false, cp75: false };
+                pathTrailEl.setAttribute('d', `M ${startPos.x} ${startPos.y}`);
+            }
+        }
+
+        function handleMove(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const touch = e.touches ? e.touches[0] : e;
+            const bounds = mainEl.getBoundingClientRect();
+            const x = touch.clientX - bounds.left;
+            const y = touch.clientY - bounds.top;
+
+            const pathInfo = getDistanceToPath(x, y);
+
+            if (pathInfo.distance > 75) {
+                isDragging = false;
+                resetCarToStart();
+                return;
+            }
+
+            const progress = pathInfo.pathDist / pathLength;
+            if (progress >= 0.20 && progress <= 0.40) checkpointFlags.cp25 = true;
+            if (progress >= 0.45 && progress <= 0.65 && checkpointFlags.cp25) checkpointFlags.cp50 = true;
+            if (progress >= 0.70 && progress <= 0.95 && checkpointFlags.cp50) checkpointFlags.cp75 = true;
+
+            moveCarToCenter(x, y, false);
+
+            const currentD = pathTrailEl.getAttribute('d');
+            pathTrailEl.setAttribute('d', `${currentD} L ${x} ${y}`);
+
+            checkGoalReached(x, y, pathInfo.pathDist);
+        }
+
+        function handleEnd() {
+            if (isDragging) {
+                isDragging = false;
+                resetCarToStart();
+            }
+        }
+
+        window.addEventListener('load', () => {
+            initMode('line');
+            setTimeout(() => {
+                loadStage(0);
+            }, 50);
+        });
+
+        const mainArea = document.querySelector('main');
+        
+        mainArea.addEventListener('mousedown', handleStart);
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleEnd);
+
+        mainArea.addEventListener('touchstart', handleStart, { passive: false });
+        window.addEventListener('touchmove', handleMove, { passive: false });
+        window.addEventListener('touchend', handleEnd);
+        window.addEventListener('touchcancel', handleEnd);
+
+        window.addEventListener('resize', () => {
+            loadStage(stageIndex);
+        });
+
+        document.getElementById('mode-line').addEventListener('click', () => initMode('line'));
+        document.getElementById('mode-zigzag').addEventListener('click', () => initMode('zigzag'));
+        document.getElementById('mode-shape').addEventListener('click', () => initMode('shape'));
+
+        document.getElementById('skip-btn').addEventListener('click', () => {
+            if (stageIndex + 1 < currentCourses.length) {
+                loadStage(stageIndex + 1);
+            } else {
+                loadStage(0);
+            }
+        });
+
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            loadStage(stageIndex);
+        });
+
+        document.getElementById('modal-reset-btn').addEventListener('click', () => {
+            document.getElementById('success-modal').classList.add('opacity-0', 'pointer-events-none');
+            initMode(currentMode);
+        });
+    </script>
+</body>
+</html>

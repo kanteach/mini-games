@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>いろあわせ ちいくゲーム</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Hiragino Kaku Gothic ProN', 'メイリオ', sans-serif;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+        .ball {
+            touch-action: none;
+            cursor: grab;
+            border: 4px solid #000000;
+            box-sizing: border-box;
+            transition: transform 0.15s ease;
+        }
+        .ball:active {
+            cursor: grabbing;
+        }
+    </style>
+</head>
+<body class="bg-amber-50 h-screen w-screen flex flex-col items-center justify-between p-2 select-none">
+
+    <!-- Header & Mode Selectors -->
+    <header class="w-full max-w-md flex flex-col items-center gap-1 shrink-0">
+        <div class="w-full flex justify-between items-center px-2">
+            <h1 class="text-base font-extrabold text-amber-900">🎨 いろあわせゲーム</h1>
+            <div id="mode-buttons" class="flex gap-1.5">
+                <button id="btn-easy" onclick="setMode('easy')" class="bg-amber-500 text-white font-bold px-3 py-1 rounded-full text-xs shadow-md transition active:scale-95">かんたん</button>
+                <button id="btn-many" onclick="setMode('many')" class="bg-amber-200 text-amber-900 font-bold px-3 py-1 rounded-full text-xs shadow-md transition active:scale-95">たくさん (20こ)</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Game Board -->
+    <main id="game-board" class="w-full max-w-md flex-1 relative bg-white rounded-3xl border-4 border-amber-300 shadow-xl overflow-hidden my-1 flex flex-col p-3 gap-4">
+        
+        <!-- 上半分：4色の箱エリア（完全絶対配置で1ピクセルもサイズ可変させない） -->
+        <div id="drop-zones-container" class="w-full h-1/2 relative shrink-0">
+            <!-- 2×2の均等配置領域 -->
+            <div id="drop-zone-blue" class="drop-zone absolute top-0 left-0 w-[calc(50%-6px)] h-[calc(50%-6px)] bg-sky-400 rounded-2xl border-4 border-black/25 overflow-hidden flex flex-wrap content-center items-center justify-center gap-1 p-2 shadow-inner" data-color="blue"></div>
+            <div id="drop-zone-red" class="drop-zone absolute top-0 right-0 w-[calc(50%-6px)] h-[calc(50%-6px)] bg-red-500 rounded-2xl border-4 border-black/25 overflow-hidden flex flex-wrap content-center items-center justify-center gap-1 p-2 shadow-inner" data-color="red"></div>
+            <div id="drop-zone-yellow" class="drop-zone absolute bottom-0 left-0 w-[calc(50%-6px)] h-[calc(50%-6px)] bg-yellow-400 rounded-2xl border-4 border-black/25 overflow-hidden flex flex-wrap content-center items-center justify-center gap-1 p-2 shadow-inner" data-color="yellow"></div>
+            <div id="drop-zone-green" class="drop-zone absolute bottom-0 right-0 w-[calc(50%-6px)] h-[calc(50%-6px)] bg-emerald-500 rounded-2xl border-4 border-black/25 overflow-hidden flex flex-wrap content-center items-center justify-center gap-1 p-2 shadow-inner" data-color="green"></div>
+        </div>
+
+        <!-- 下半分：玉の表示エリア -->
+        <div id="ball-area" class="w-full h-1/2 flex-1 flex flex-wrap items-center justify-center content-center gap-2.5 overflow-hidden p-1">
+            <!-- JSで動的生成 -->
+        </div>
+
+    </main>
+
+    <!-- Footer / Reset -->
+    <footer class="w-full max-w-md flex justify-center pb-1 shrink-0">
+        <button onclick="initGame()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-6 rounded-full shadow-md text-sm active:scale-95 transition">
+            🔄 もういちど やりなおす
+        </button>
+    </footer>
+
+    <!-- クリアモーダル -->
+    <div id="success-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300 z-[9999] p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-xs w-full text-center shadow-2xl transform scale-90 transition-transform duration-300 flex flex-col items-center">
+            <div class="text-6xl mb-3">🎉</div>
+            <h2 class="text-2xl font-extrabold text-amber-800 mb-2">ぜんぶできたよ！</h2>
+            <p class="text-slate-600 mb-6 font-bold">すごいね！とってもじょうず！</p>
+            <button onclick="closeModal(); initGame();" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-lg py-3 rounded-2xl shadow-lg transform active:scale-95 transition">
+                もういっかいあそぶ
+            </button>
+        </div>
+    </div>
+
+    <!-- Game Engine Script -->
+    <script>
+        class SoundFX {
+            constructor() { this.ctx = null; }
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+                if (this.ctx.state === 'suspended') { this.ctx.resume(); }
+            }
+            playPinpon() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(783.99, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(now); osc.stop(now + 0.35);
+            }
+            playBoo() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(130, now);
+                osc.frequency.linearRampToValueAtTime(90, now + 0.25);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(now); osc.stop(now + 0.25);
+            }
+        }
+
+        const sounds = new SoundFX();
+
+        const COLOR_MAP = {
+            blue: { name: "あお", bg: "bg-sky-400" },
+            red: { name: "あか", bg: "bg-red-500" },
+            yellow: { name: "きいろ", bg: "bg-yellow-400" },
+            green: { name: "みどり", bg: "bg-emerald-500" }
+        };
+
+        const colorKeys = ['blue', 'red', 'yellow', 'green'];
+        let currentMode = 'easy';
+        let activeBall = null;
+        let activeTouchId = null;
+        let dragOffset = { x: 0, y: 0 };
+        let remainingBalls = 0;
+
+        const ballAreaEl = document.getElementById('ball-area');
+        const boardEl = document.getElementById('game-board');
+
+        function setMode(mode) {
+            currentMode = mode;
+            if (mode === 'easy') {
+                document.getElementById('btn-easy').className = "bg-amber-500 text-white font-bold px-3 py-1 rounded-full text-xs shadow-md transition active:scale-95";
+                document.getElementById('btn-many').className = "bg-amber-200 text-amber-900 font-bold px-3 py-1 rounded-full text-xs shadow-md transition active:scale-95";
+            } else {
+                document.getElementById('btn-many').className = "bg-amber-500 text-white font-bold px-3 py-1 rounded-full text-xs shadow-md transition active:scale-95";
+                document.getElementById('btn-easy').className = "bg-amber-200 text-amber-900 font-bold px-3 py-1 rounded-full text-xs shadow-md transition active:scale-95";
+            }
+            initGame();
+        }
+
+        function initGame() {
+            // 箱の中身をクリア
+            document.querySelectorAll('.drop-zone').forEach(zone => zone.innerHTML = '');
+            ballAreaEl.innerHTML = '';
+
+            // 玉の色リストを作成
+            let ballColors = [];
+            if (currentMode === 'easy') {
+                ballColors = [...colorKeys];
+            } else {
+                for (let i = 0; i < 20; i++) {
+                    ballColors.push(colorKeys[Math.floor(Math.random() * colorKeys.length)]);
+                }
+            }
+
+            ballColors.sort(() => Math.random() - 0.5);
+            remainingBalls = ballColors.length;
+
+            // 下部エリアに玉を生成
+            ballColors.forEach((color, idx) => {
+                const ball = document.createElement('div');
+                ball.className = `ball rounded-full ${COLOR_MAP[color].bg} shadow-lg shrink-0`;
+                ball.dataset.color = color;
+                ball.id = `ball-${idx}`;
+                
+                const size = currentMode === 'easy' ? 64 : 48;
+                ball.style.width = `${size}px`;
+                ball.style.height = `${size}px`;
+
+                addDragEvents(ball);
+                ballAreaEl.appendChild(ball);
+            });
+        }
+
+        function addDragEvents(ball) {
+            ball.addEventListener('pointerdown', (e) => {
+                if (ball.classList.contains('matched')) return;
+                sounds.init();
+                e.preventDefault();
+                
+                activeBall = ball;
+                activeTouchId = e.pointerId;
+                ball.setPointerCapture(activeTouchId);
+
+                const ballRect = ball.getBoundingClientRect();
+
+                ball.style.position = 'absolute';
+                ball.style.zIndex = '9999';
+                ball.style.width = '4cm';
+                ball.style.height = '4cm';
+                ball.style.transform = 'scale(1)';
+
+                dragOffset.x = e.clientX - ballRect.left - (ballRect.width / 2);
+                dragOffset.y = e.clientY - ballRect.top - (ballRect.height / 2);
+
+                updateBallPosition(e.clientX, e.clientY);
+            });
+
+            ball.addEventListener('pointermove', (e) => {
+                if (!activeBall || activeBall !== ball || e.pointerId !== activeTouchId) return;
+                e.preventDefault();
+                updateBallPosition(e.clientX, e.clientY);
+            });
+
+            ball.addEventListener('pointerup', handleDrop);
+            ball.addEventListener('pointercancel', handleDrop);
+        }
+
+        function updateBallPosition(clientX, clientY) {
+            if (!activeBall) return;
+            const boardRect = boardEl.getBoundingClientRect();
+            const x = clientX - boardRect.left - activeBall.offsetWidth / 2;
+            const y = clientY - boardRect.top - activeBall.offsetHeight / 2;
+
+            activeBall.style.left = `${x}px`;
+            activeBall.style.top = `${y}px`;
+        }
+
+        function handleDrop(e) {
+            if (!activeBall || e.pointerId !== activeTouchId) return;
+            e.preventDefault();
+
+            const ball = activeBall;
+            ball.style.transform = 'scale(1)';
+            ball.style.zIndex = '1';
+
+            const ballColor = ball.dataset.color;
+            const ballRect = ball.getBoundingClientRect();
+            
+            const zones = document.querySelectorAll('.drop-zone');
+            let matchedZone = null;
+
+            zones.forEach(zone => {
+                const zoneRect = zone.getBoundingClientRect();
+                const ballCenterX = ballRect.left + ballRect.width / 2;
+                const ballCenterY = ballRect.top + ballRect.height / 2;
+
+                if (
+                    ballCenterX >= zoneRect.left &&
+                    ballCenterX <= zoneRect.right &&
+                    ballCenterY >= zoneRect.top &&
+                    ballCenterY <= zoneRect.bottom
+                ) {
+                    matchedZone = zone;
+                }
+            });
+
+            if (matchedZone) {
+                const zoneColor = matchedZone.dataset.color;
+                if (ballColor === zoneColor) {
+                    sounds.playPinpon();
+                    ball.classList.add('matched');
+                    ball.style.pointerEvents = 'none';
+
+                    // 箱の中に配置（箱のサイズは絶対変わらず、玉は縮小して中央〜grid状におさまる）
+                    ball.style.position = 'relative';
+                    ball.style.left = '0';
+                    ball.style.top = '0';
+                    ball.style.width = '30px';
+                    ball.style.height = '30px';
+                    ball.style.borderWidth = '2px';
+
+                    matchedZone.appendChild(ball);
+
+                    remainingBalls--;
+                    if (remainingBalls === 0) {
+                        setTimeout(() => {
+                            confetti({ particleCount: 120, spread: 80, origin: { y: 0.5 } });
+                            document.getElementById('success-modal').classList.remove('opacity-0', 'pointer-events-none');
+                        }, 300);
+                    }
+                } else {
+                    sounds.playBoo();
+                    returnToBallArea(ball);
+                }
+            } else {
+                returnToBallArea(ball);
+            }
+
+            activeBall = null;
+            activeTouchId = null;
+        }
+
+        function returnToBallArea(ball) {
+            ball.style.position = 'relative';
+            ball.style.left = '0';
+            ball.style.top = '0';
+            const size = currentMode === 'easy' ? 64 : 48;
+            ball.style.width = `${size}px`;
+            ball.style.height = `${size}px`;
+            ball.style.borderWidth = '4px';
+            ballAreaEl.appendChild(ball);
+        }
+
+        function closeModal() {
+            document.getElementById('success-modal').classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        window.addEventListener('load', () => {
+            initMode('easy');
+        });
+    </script>
+</body>
+</html>
