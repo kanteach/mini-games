@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>みんなのミニゲームひろば</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Hiragino Kaku Gothic ProN', 'メイリオ', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-sky-50 min-h-screen flex flex-col text-slate-800">
+
+    <!-- ヘッダー -->
+    <header class="bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-md">
+        <div class="max-w-5xl mx-auto px-4 py-6 md:py-8 text-center">
+            <h1 class="text-2xl md:text-4xl font-black tracking-wider flex items-center justify-center gap-2">
+                🎮 みんなのミニゲームひろば
+            </h1>
+            <p class="text-sky-100 text-xs md:text-sm font-bold mt-2">
+                すきな ゲームを タッチして あそんでみよう！
+            </p>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="max-w-5xl w-full mx-auto px-4 py-6 flex-1">
+        
+        <!-- カテゴリ絞り込みボタン（自動生成） -->
+        <div id="category-filters" class="flex flex-wrap justify-center gap-2 mb-6">
+            <!-- JSで自動生成されます -->
+        </div>
+
+        <!-- ゲーム一覧グリッド -->
+        <div id="game-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <!-- JSでカードが自動生成されます -->
+        </div>
+
+    </main>
+
+    <!-- フッター -->
+    <footer class="text-center py-6 text-xs text-sky-700 font-bold">
+        &copy; 2026 みんなのミニゲームひろば
+    </footer>
+
+    <!-- ゲーム一覧データを読み込み -->
+    <script src="games-list.js"></script>
+    <script>
+        const gridEl = document.getElementById('game-grid');
+        const filterEl = document.getElementById('category-filters');
+        let currentCategory = 'すべて';
+
+        // カテゴリボタンの生成
+        function renderFilters() {
+            const categories = ['すべて', ...new Set(GAMES_DATA.map(g => g.category))];
+            filterEl.innerHTML = categories.map(cat => {
+                const isActive = cat === currentCategory;
+                const activeClass = isActive
+                    ? 'bg-sky-600 text-white border-sky-700 shadow'
+                    : 'bg-white text-sky-800 border-sky-200 hover:bg-sky-100';
+                return `
+                    <button onclick="selectCategory('${cat}')"
+                        class="px-4 py-1.5 rounded-full text-xs md:text-sm font-extrabold border-2 transition ${activeClass}">
+                        ${cat}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectCategory(cat) {
+            currentCategory = cat;
+            renderFilters();
+            renderGames();
+        }
+
+        // ゲームカードの生成
+        function renderGames() {
+            const filtered = currentCategory === 'すべて'
+                ? GAMES_DATA
+                : GAMES_DATA.filter(g => g.category === currentCategory);
+
+            gridEl.innerHTML = filtered.map(game => `
+                <a href="${game.file}" class="group bg-white rounded-3xl border-4 border-sky-200 hover:border-sky-400 shadow-md hover:shadow-xl transition-all duration-200 overflow-hidden flex flex-col transform hover:-translate-y-1">
+                    <!-- サムネイルエリア -->
+                    <div class="${game.bgColor || 'bg-sky-100'} h-36 flex items-center justify-center relative overflow-hidden">
+                        <span class="text-6xl group-hover:scale-110 transition-transform duration-200 select-none">
+                            ${game.icon}
+                        </span>
+                        ${game.isNew ? '<span class="absolute top-3 right-3 bg-rose-500 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow">NEW!</span>' : ''}
+                        <span class="absolute bottom-2.5 left-3 bg-white/90 text-sky-800 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full">
+                            ${game.category}
+                        </span>
+                    </div>
+                    <!-- 説明エリア -->
+                    <div class="p-5 flex-1 flex flex-col justify-between">
+                        <div>
+                            <h2 class="text-lg font-black text-sky-950 mb-1.5 group-hover:text-sky-600 transition-colors">
+                                ${game.title}
+                            </h2>
+                            <p class="text-xs text-slate-600 font-bold leading-relaxed">
+                                ${game.description}
+                            </p>
+                        </div>
+                        <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-slate-400">${game.targetAge || 'だれでもOK'}</span>
+                            <span class="bg-emerald-500 group-hover:bg-emerald-600 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-sm transition">
+                                あそぶ ▶
+                            </span>
+                        </div>
+                    </div>
+                </a>
+            `).join('');
+        }
+
+        // 初期表示
+        renderFilters();
+        renderGames();
+    </script>
+</body>
+</html>
