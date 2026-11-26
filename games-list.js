@@ -68,5 +68,15 @@ const GAMES_DATA = [
         bgColor: "bg-teal-100",
         targetAge: "幼児〜小学生・療育向け",
         isNew: true
+    },
+    {
+        title: "おかねの けいさんゲーム",
+        description: "1えんから 10000えんまで、おかねを かぞえたり おかいものしたり しよう！",
+        file: "money-game/money-game.html",
+        icon: "🪙",
+        category: "かず・けいさん",
+        bgColor: "bg-yellow-100",
+        targetAge: "幼児〜小学生・療育向け",
+        isNew: true
     }
 ];
