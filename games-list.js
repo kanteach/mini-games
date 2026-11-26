@@ -2,7 +2,7 @@ const GAMES_DATA = [
     {
         title: "タッチゲーム（ついし・タッチ パズル）",
         description: "うごくキャラクターを「ながおし」したり「タッチ」してパワーをためよう！4つのレベルであそべるよ。",
-        file: "games/touch-game.html",
+        file: "touch-game.html",
         icon: "🐰",
         category: "タッチ・追視",
         bgColor: "bg-sky-100",
