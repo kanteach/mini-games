@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>なかまあつめ Deluxe</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
+      background-color: #f0f9ff;
+      color: #333;
+      text-align: center;
+      overflow-x: hidden;
+      overscroll-behavior: none;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      background-color: #e0f2fe;
+    }
+    h1 {
+      font-size: 1.2rem;
+      color: #0284c7;
+      margin: 0;
+    }
+    .header-btns {
+      display: flex;
+      gap: 6px;
+    }
+    .top-btn {
+      background-color: #22c55e;
+      color: white;
+      border: none;
+      border-radius: 15px;
+      padding: 5px 10px;
+      font-size: 0.8rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .top-btn.off {
+      background-color: #94a3b8;
+    }
+
+    .instruction {
+      font-size: 1.15rem;
+      margin: 6px 0;
+      font-weight: bold;
+      color: #0369a1;
+      min-height: 1.6rem;
+      padding: 0 10px;
+    }
+
+    /* 画面切り替え */
+    .screen {
+      display: none;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 10px;
+    }
+    .screen.active {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 45px);
+    }
+
+    /* モード切替タブ */
+    .mode-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .tab-btn {
+      flex: 1;
+      max-width: 220px;
+      padding: 10px 5px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      border: 2px solid #0284c7;
+      background-color: #fff;
+      color: #0284c7;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background-color: #0284c7;
+      color: white;
+    }
+
+    /* タイトル画面 */
+    #screen-title.active {
+      display: block;
+      height: auto;
+    }
+    .level-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 10px auto;
+      max-width: 500px;
+      padding: 0 10px;
+    }
+    .level-btn {
+      background-color: #ffffff;
+      border: 3px solid #38bdf8;
+      border-radius: 12px;
+      padding: 12px 5px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.08);
+      position: relative;
+    }
+    .level-btn:active {
+      transform: scale(0.96);
+      background-color: #e0f2fe;
+    }
+    .level-btn.cleared::after {
+      content: '✔';
+      position: absolute;
+      top: -8px;
+      right: -5px;
+      color: #22c55e;
+      font-size: 1.4rem;
+      text-shadow: 1px 1px 0 white, -1px -1px 0 white;
+    }
+    .custom-btn {
+      background-color: #f59e0b;
+      border-color: #d97706;
+      color: white;
+      grid-column: span 3;
+      font-size: 1rem;
+    }
+
+    /* カスタム設定モーダル */
+    #custom-panel {
+      display: none;
+      background: white;
+      border: 3px solid #f59e0b;
+      border-radius: 16px;
+      padding: 15px;
+      margin: 10px auto;
+      max-width: 450px;
+      text-align: left;
+    }
+    .custom-row {
+      margin-bottom: 10px;
+    }
+    .custom-row label {
+      display: block;
+      font-weight: bold;
+      color: #b45309;
+      margin-bottom: 3px;
+      font-size: 0.9rem;
+    }
+    .custom-row select {
+      width: 100%;
+      padding: 6px;
+      font-size: 0.95rem;
+      border-radius: 8px;
+      border: 2px solid #cbd5e1;
+    }
+
+    /* ゲーム画面レイアウト */
+    #game-layout {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      gap: 6px;
+    }
+
+    #game-stage {
+      flex: 1.2;
+      position: relative;
+      background-color: #ffffff;
+      border: 3px dashed #93c5fd;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .item {
+      position: absolute;
+      font-size: 2.8rem;
+      cursor: grab;
+      width: 55px;
+      height: 55px;
+      line-height: 55px;
+      text-align: center;
+      z-index: 10;
+      visibility: hidden; 
+      transform: translate(-50%, -50%); 
+      will-change: left, top;
+    }
+    .item:active {
+      cursor: grabbing;
+      transform: translate(-50%, -50%) scale(1.1);
+      z-index: 100;
+    }
+
+    /* 集める枠エリア */
+    #boxes-container {
+      flex: 1.5;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 8px;
+      overflow-y: auto;
+      background-color: #e0f2fe;
+      border-radius: 16px;
+    }
+
+    .target-box {
+      background-color: #fef08a;
+      border: 3px solid #eab308;
+      border-radius: 12px;
+      flex: 1 1 140px;
+      max-width: 200px;
+      min-height: 120px;
+      padding: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+    }
+
+    .box-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      width: 100%;
+      margin-bottom: 4px;
+    }
+
+    .box-title {
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #854d0e;
+    }
+
+    /* 各枠の正誤判定マーク */
+    .box-mark {
+      font-size: 1.2rem;
+      font-weight: bold;
+      min-width: 20px;
+    }
+
+    .ten-hint-badge {
+      font-size: 0.75rem;
+      background-color: #f43f5e;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+
+    .box-drop-area {
+      width: 100%;
+      flex-grow: 1;
+      border: 2px dashed #ca8a04;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.7);
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 4px;
+      padding: 4px;
+    }
+
+    /* 枠内グループ構造 */
+    .item-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 3px;
+      margin-bottom: 2px;
+      width: 100%;
+      align-items: center;
+    }
+    .group-label {
+      width: 100%;
+      font-size: 0.75rem;
+      font-weight: bold;
+      color: #475569;
+      text-align: left;
+      padding-left: 2px;
+    }
+
+    /* 束スタイル */
+    .bundle-btn {
+      color: white;
+      border-radius: 8px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+      margin: 1px;
+      box-shadow: 0 2px 3px rgba(0,0,0,0.15);
+      cursor: pointer;
+      position: relative;
+    }
+    .bundle-btn::after {
+      content: '📂';
+      position: absolute;
+      bottom: -3px;
+      right: -3px;
+      font-size: 0.6rem;
+    }
+
+    /* 10の束 */
+    .ten-bundle {
+      width: 40px;
+      height: 40px;
+      background-color: #f97316;
+      font-size: 1.1rem;
+    }
+
+    /* 5の束 */
+    .five-bundle {
+      width: 34px;
+      height: 34px;
+      background-color: #0284c7;
+      font-size: 0.95rem;
+    }
+
+    /* 展開状態のスタイリング */
+    .expanded-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+      background: rgba(254, 240, 138, 0.4);
+      border: 1px dashed #f59e0b;
+      border-radius: 6px;
+      padding: 2px;
+      position: relative;
+      margin: 1px;
+    }
+    /* 折りたたみボタン */
+    .fold-btn {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      background: #f59e0b;
+      color: white;
+      font-size: 0.65rem;
+      font-weight: bold;
+      padding: 2px 5px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-left: auto;
+      margin-bottom: 2px;
+      width: 100%;
+    }
+
+    /* 個別絵文字スタイル */
+    .clickable-emoji {
+      font-size: 1.6rem;
+    }
+    body.mode-pittari .clickable-emoji {
+      cursor: pointer;
+      border-radius: 4px;
+      transition: transform 0.1s;
+    }
+    body.mode-pittari .clickable-emoji:hover {
+      transform: scale(1.2);
+      background-color: rgba(239, 68, 68, 0.15);
+    }
+
+    /* 解答入力エリア */
+    #answer-area {
+      background-color: #ffffff;
+      border: 3px solid #38bdf8;
+      border-radius: 12px;
+      padding: 8px;
+      margin-top: 4px;
+    }
+    .answer-inputs-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .answer-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.95rem;
+      background: #f8fafc;
+      padding: 3px 8px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+    }
+    .answer-input {
+      width: 55px;
+      height: 36px;
+      font-size: 1.3rem;
+      text-align: center;
+      border: 2px solid #0284c7;
+      border-radius: 6px;
+      inputmode: numeric;
+    }
+
+    #game-footer {
+      padding: 4px 0;
+    }
+
+    .btn {
+      background-color: #22c55e;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 22px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 3px 5px rgba(0,0,0,0.1);
+      margin: 0 4px;
+    }
+    .btn:active {
+      transform: scale(0.95);
+    }
+    .btn-secondary {
+      background-color: #64748b;
+      padding: 6px 16px;
+      font-size: 0.85rem;
+    }
+
+    /* 紙吹雪・演出 */
+    #confetti-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 9999;
+    }
+    #clear-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(255, 255, 255, 0.6);
+      z-index: 9998;
+      justify-content: center;
+      align-items: center;
+    }
+    .hanamaru {
+      font-size: 9rem;
+      animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="mode-normal">
+
+  <header>
+    <h1>なかまあつめ Deluxe</h1>
+    <div class="header-btns">
+      <button class="top-btn" id="complement-toggle" onclick="toggleComplementHint()">ほすう ON</button>
+      <button class="top-btn" id="bgm-toggle" onclick="toggleBGM()">おんがく 🎵</button>
+    </div>
+  </header>
+
+  <canvas id="confetti-canvas"></canvas>
+  <div id="clear-overlay"><div class="hanamaru">💮</div></div>
+
+  <!-- タイトル画面 -->
+  <div id="screen-title" class="screen active">
+    <div class="mode-tabs">
+      <button class="tab-btn active" id="tab-normal" onclick="switchGameMode('normal')">なかまあつめモード</button>
+      <button class="tab-btn" id="tab-pittari" onclick="switchGameMode('pittari')">🎯 ぴったりモード</button>
+    </div>
+
+    <div class="instruction" id="title-instruction">むずかしさを えらんでね</div>
+    <div class="level-grid" id="level-grid"></div>
+
+    <div id="custom-panel">
+      <div class="custom-row">
+        <label>・ぶんるい ほうほう</label>
+        <select id="custom-tag-type">
+          <option value="name">なまえ（くるま、いぬ など）</option>
+          <option value="category">かてごりー（のりもの、いきもの など）</option>
+        </select>
+      </div>
+      <div class="custom-row">
+        <label>・しゅるいの かず（枠のかず）</label>
+        <select id="custom-types-count">
+          <option value="2">2 しゅるい</option>
+          <option value="3" selected>3 しゅるい</option>
+          <option value="4">4 しゅるい</option>
+          <option value="6">6 しゅるい</option>
+        </select>
+      </div>
+      <div class="custom-row">
+        <label>・1しゅるいの かず</label>
+        <select id="custom-item-count">
+          <option value="2-5">2 ～ 5 こ</option>
+          <option value="4-10" selected>4 ～ 10 こ</option>
+          <option value="10-15">10 ～ 15 こ</option>
+        </select>
+      </div>
+      <button class="btn" style="width:100%; margin: 5px 0 0;" onclick="startCustomGame()">この設定でスタート！</button>
+    </div>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div id="screen-game" class="screen">
+    <div class="instruction" id="game-instruction">おなじものを いれてね</div>
+    
+    <div id="game-layout">
+      <div id="game-stage"></div>
+      <div id="boxes-container"></div>
+    </div>
+
+    <div id="answer-area">
+      <div class="answer-inputs-grid" id="answer-inputs"></div>
+      <button class="btn" onclick="checkAnswers()">できた！</button>
+    </div>
+
+    <div id="game-footer">
+      <button class="btn btn-secondary" onclick="backToTitle()">タイトルにもどる</button>
+    </div>
+  </div>
+
+<script>
+const ITEM_DATABASE = [
+  // のりもの
+  { id: 'car', emoji: '🚗', name: 'くるま', category: 'のりもの' },
+  { id: 'train', emoji: '🚃', name: 'でんしゃ', category: 'のりもの' },
+  { id: 'ambulance', emoji: '🚑', name: 'きゅうきゅうしゃ', category: 'のりもの' },
+  { id: 'bus', emoji: '🚌', name: 'ばす', category: 'のりもの' },
+  { id: 'airplane', emoji: '✈️', name: 'ひこうき', category: 'のりもの' },
+  { id: 'rocket', emoji: '🚀', name: 'ろけっと', category: 'のりもの' },
+  { id: 'ship', emoji: '🚢', name: 'ふね', category: 'のりもの' },
+  { id: 'bike', emoji: '🚲', name: 'じてんしゃ', category: 'のりもの' },
+
+  // いきもの
+  { id: 'dog', emoji: '🐶', name: 'いぬ', category: 'いきもの' },
+  { id: 'cat', emoji: '🐱', name: 'ねこ', category: 'いきもの' },
+  { id: 'fish', emoji: '🐟', name: 'さかな', category: 'いきもの' },
+  { id: 'rabbit', emoji: '🐰', name: 'うさぎ', category: 'いきもの' },
+  { id: 'panda', emoji: '🐼', name: 'ぱんだ', category: 'いきもの' },
+  { id: 'lion', emoji: '🦁', name: 'らいおん', category: 'いきもの' },
+  { id: 'frog', emoji: '🐸', name: 'かえる', category: 'いきもの' },
+  { id: 'bird', emoji: '🐤', name: 'ひよこ', category: 'いきもの' },
+
+  // たべもの
+  { id: 'mikan', emoji: '🍊', name: 'みかん', category: 'たべもの' },
+  { id: 'apple', emoji: '🍎', name: 'りんご', category: 'たべもの' },
+  { id: 'meat', emoji: '🍖', name: 'にく', category: 'たべもの' },
+  { id: 'banana', emoji: '🍌', name: 'ばなな', category: 'たべもの' },
+  { id: 'pizza', emoji: '🍕', name: 'ぴざ', category: 'たべもの' },
+  { id: 'cake', emoji: '🍰', name: 'けーき', category: 'たべもの' },
+  { id: 'onigiri', emoji: '🍙', name: 'おにぎり', category: 'たべもの' },
+  { id: 'donut', emoji: '🍩', name: 'どーなつ', category: 'たべもの' },
+
+  // ぶんぼうぐ & おもちゃ
+  { id: 'pencil', emoji: '✏️', name: 'えんぴつ', category: 'どうぐ' },
+  { id: 'book', emoji: '📖', name: 'ほん', category: 'どうぐ' },
+  { id: 'scissors', emoji: '✂️', name: 'はさみ', category: 'どうぐ' },
+  { id: 'note', emoji: '📓', name: 'のーと', category: 'どうぐ' },
+  { id: 'soccer', emoji: '⚽', name: 'さっかーぼーる', category: 'どうぐ' },
+  { id: 'balloon', emoji: '🎈', name: 'ふうせん', category: 'どうぐ' },
+  { id: 'music', emoji: '🎺', name: 'らっぱ', category: 'どうぐ' },
+  { id: 'present', emoji: '🎁', name: 'ぷれぜんと', category: 'どうぐ' }
+];
+
+const LEVEL_CONFIGS = {
+  1: { countTypes: 2, range: [2, 5], tagType: 'name' },
+  2: { countTypes: 3, range: [2, 5], tagType: 'name' },
+  3: { countTypes: 3, range: [4, 10], tagType: 'name' },
+  4: { countTypes: 3, range: [10, 15], tagType: 'name' },
+  5: { countTypes: 4, range: [10, 15], tagType: 'name' },
+  6: { countTypes: 4, range: [2, 5], tagType: 'category', numCategories: 2 },
+  7: { countTypes: 4, range: [4, 10], tagType: 'category', numCategories: 2 },
+  8: { countTypes: 6, range: [4, 10], tagType: 'category', numCategories: 3 },
+  9: { countTypes: 8, range: [4, 10], tagType: 'category', numCategories: 4 }
+};
+
+let currentMode = 'normal'; // 'normal' | 'pittari'
+let currentLevel = 1;
+let gameItemsData = [];
+let targetBoxes = [];
+let boxContents = {}; 
+let expandedBundles = {}; 
+let clearedLevels = JSON.parse(localStorage.getItem('clearedLevels_nakama2') || '{}');
+let activeItem = null;
+let touchOffset = { x: 0, y: 0 };
+let showComplementHint = true; 
+
+// --- BGM / SE ---
+let audioCtx;
+let bgmTimer = null;
+let isBgmOn = false;
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+}
+
+function toggleBGM() {
+  initAudio();
+  isBgmOn = !isBgmOn;
+  const btn = document.getElementById('bgm-toggle');
+  if (isBgmOn) {
+    btn.innerText = 'おんがく 🎵';
+    btn.classList.remove('off');
+    startBGM();
+  } else {
+    btn.innerText = 'おんがく 🔇';
+    btn.classList.add('off');
+    stopBGM();
+  }
+}
+
+function toggleComplementHint() {
+  showComplementHint = !showComplementHint;
+  const btn = document.getElementById('complement-toggle');
+  if (showComplementHint) {
+    btn.innerText = 'ほすう ON';
+    btn.classList.remove('off');
+  } else {
+    btn.innerText = 'ほすう OFF';
+    btn.classList.add('off');
+  }
+  targetBoxes.forEach(b => updateBoxRender(b.tag));
+}
+
+function startBGM() {
+  if (!isBgmOn || !audioCtx) return;
+  stopBGM();
+  const notes = [261.63, 329.63, 392.00, 523.25, 392.00, 329.63]; 
+  let noteIndex = 0;
+  bgmTimer = setInterval(() => {
+    if (!isBgmOn) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(notes[noteIndex], audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.3);
+    noteIndex = (noteIndex + 1) % notes.length;
+  }, 400);
+}
+
+function stopBGM() {
+  if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null; }
+}
+
+function playSE(type) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+
+  if (type === 'correct') {
+    osc.frequency.setValueAtTime(523.25, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(659.25, audioCtx.currentTime + 0.1);
+    osc.frequency.setValueAtTime(783.99, audioCtx.currentTime + 0.2);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+  } else if (type === 'wrong') {
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(110, audioCtx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.35);
+  } else if (type === 'drop') {
+    osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+  } else if (type === 'pop') {
+    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.08);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+  } else if (type === 'return') {
+    osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.12);
+    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.12);
+  }
+}
+
+// --- 初期化 ---
+window.onload = () => {
+  document.body.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 1 || activeItem) { e.preventDefault(); }
+  }, { passive: false });
+  renderTitleScreen();
+};
+
+function switchGameMode(mode) {
+  currentMode = mode;
+  document.body.className = `mode-${mode}`;
+  document.getElementById('tab-normal').classList.toggle('active', mode === 'normal');
+  document.getElementById('tab-pittari').classList.toggle('active', mode === 'pittari');
+  renderTitleScreen();
+}
+
+function renderTitleScreen() {
+  const grid = document.getElementById('level-grid');
+  grid.innerHTML = '';
+  for (let i = 1; i <= 9; i++) {
+    const btn = document.createElement('button');
+    const key = `${currentMode}_${i}`;
+    btn.className = `level-btn ${clearedLevels[key] ? 'cleared' : ''}`;
+    btn.innerText = `むずかしさ ${i}`;
+    btn.onclick = () => startGame(i);
+    grid.appendChild(btn);
+  }
+
+  const customBtn = document.createElement('button');
+  customBtn.className = 'level-btn custom-btn';
+  customBtn.innerText = '⚙️ じぶんでもーど';
+  customBtn.onclick = toggleCustomPanel;
+  grid.appendChild(customBtn);
+
+  showScreen('screen-title');
+}
+
+function toggleCustomPanel() {
+  const panel = document.getElementById('custom-panel');
+  panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+}
+
+function showScreen(screenId) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+}
+
+function backToTitle() {
+  document.getElementById('game-stage').innerHTML = '';
+  document.getElementById('clear-overlay').style.display = 'none';
+  renderTitleScreen();
+}
+
+// --- ゲーム開始 ---
+function startGame(level, customConfig = null) {
+  initAudio();
+  if (isBgmOn && !bgmTimer) startBGM();
+
+  currentLevel = level;
+  const config = customConfig || LEVEL_CONFIGS[level] || LEVEL_CONFIGS[1];
+
+  let instructionText = 'おなじものを いれてね';
+  if (currentMode === 'pittari') {
+    instructionText = 'していされた かずだけ いれてね';
+  }
+  
+  updateInstruction(instructionText);
+
+  document.getElementById('clear-overlay').style.display = 'none';
+  document.getElementById('boxes-container').innerHTML = '';
+  document.getElementById('game-stage').innerHTML = '';
+
+  setupGameData(config);
+  renderBoxes();
+  renderAnswerInputs();
+  
+  showScreen('screen-game');
+  requestAnimationFrame(() => setTimeout(renderItemsScatter, 50));
+}
+
+function startCustomGame() {
+  const tagType = document.getElementById('custom-tag-type').value;
+  const countTypes = parseInt(document.getElementById('custom-types-count').value, 10);
+  const rangeVal = document.getElementById('custom-item-count').value.split('-').map(Number);
+
+  const customConfig = {
+    countTypes: countTypes,
+    range: rangeVal,
+    tagType: tagType,
+    numCategories: Math.min(countTypes, 4)
+  };
+
+  startGame('custom', customConfig);
+}
+
+function setupGameData(config) {
+  gameItemsData = [];
+  targetBoxes = [];
+  boxContents = {};
+  expandedBundles = {};
+
+  const dbShuffled = [...ITEM_DATABASE].sort(() => 0.5 - Math.random());
+
+  if (config.tagType === 'name') {
+    const selectedTypes = dbShuffled.slice(0, config.countTypes);
+    selectedTypes.forEach(type => {
+      const count = getRandomInt(config.range[0], config.range[1]);
+      let targetCount = count;
+      let stageCount = count;
+
+      if (currentMode === 'pittari') {
+        const extra = getRandomInt(2, 5);
+        stageCount = count + extra;
+      }
+
+      targetBoxes.push({ tag: type.name, targetTag: type.name, targetCount: targetCount, correctCount: targetCount });
+      boxContents[type.name] = [];
+
+      for (let i = 0; i < stageCount; i++) gameItemsData.push({ ...type });
+    });
+  } else {
+    const categories = [...new Set(ITEM_DATABASE.map(item => item.category))].sort(() => 0.5 - Math.random());
+    const selectedCategories = categories.slice(0, config.numCategories || 2);
+    
+    selectedCategories.forEach(cat => {
+      targetBoxes.push({ tag: cat, targetTag: cat, targetCount: 0, correctCount: 0 });
+      boxContents[cat] = [];
+    });
+
+    const availableItems = ITEM_DATABASE.filter(item => selectedCategories.includes(item.category));
+    const selectedItemTypes = availableItems.sort(() => 0.5 - Math.random()).slice(0, config.countTypes);
+
+    selectedItemTypes.forEach(type => {
+      const count = getRandomInt(config.range[0], config.range[1]);
+      const targetBox = targetBoxes.find(b => b.tag === type.category);
+
+      let targetCount = count;
+      let stageCount = count;
+
+      if (currentMode === 'pittari') {
+        const extra = getRandomInt(1, 3);
+        stageCount = count + extra;
+      }
+
+      if (targetBox) {
+        targetBox.targetCount += targetCount;
+        targetBox.correctCount += targetCount;
+      }
+
+      for (let i = 0; i < stageCount; i++) gameItemsData.push({ ...type });
+    });
+  }
+}
+
+function renderBoxes() {
+  const container = document.getElementById('boxes-container');
+  targetBoxes.forEach(box => {
+    const boxEl = document.createElement('div');
+    boxEl.className = 'target-box';
+    boxEl.dataset.tag = box.targetTag;
+
+    let titleText = box.targetTag;
+    if (currentMode === 'pittari') {
+      titleText = `${box.targetTag} (${box.targetCount}こ)`;
+    }
+
+    boxEl.innerHTML = `
+      <div class="box-header">
+        <div class="box-title">${titleText}</div>
+        <div class="box-mark" id="box-mark-${box.targetTag}"></div>
+      </div>
+      <div class="ten-hint-badge" id="hint-${box.targetTag}" style="display:none;"></div>
+      <div class="box-drop-area" id="drop-area-${box.targetTag}"></div>
+    `;
+    container.appendChild(boxEl);
+  });
+}
+
+function renderItemsScatter() {
+  const stage = document.getElementById('game-stage');
+  const stageW = stage.clientWidth;
+  const stageH = stage.clientHeight;
+
+  if (stageW === 0 || stageH === 0) {
+    setTimeout(renderItemsScatter, 100);
+    return;
+  }
+
+  const itemSize = 55; 
+  const padding = 15; 
+
+  const minX = padding + itemSize/2;
+  const maxX = stageW - padding - itemSize/2;
+  const minY = padding + itemSize/2;
+  const maxY = stageH - padding - itemSize/2;
+
+  gameItemsData.sort(() => 0.5 - Math.random());
+
+  const cols = Math.max(1, Math.floor((maxX - minX) / (itemSize * 0.85)));
+  const rows = Math.max(1, Math.floor((maxY - minY) / (itemSize * 0.85)));
+  const cells = [];
+  for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) cells.push({r, c});
+  cells.sort(() => 0.5 - Math.random());
+
+  gameItemsData.forEach((item, index) => {
+    const itemEl = document.createElement('div');
+    itemEl.className = 'item';
+    itemEl.innerText = item.emoji;
+    itemEl.dataset.name = item.name;
+    itemEl.dataset.category = item.category;
+
+    let posX, posY;
+    if (index < cells.length) {
+      const cell = cells[index];
+      const jitter = itemSize * 0.2;
+      posX = minX + (cell.c * (itemSize * 0.85)) + (Math.random() * jitter);
+      posY = minY + (cell.r * (itemSize * 0.85)) + (Math.random() * jitter);
+    } else {
+      posX = getRandomInt(minX, maxX);
+      posY = getRandomInt(minY, maxY);
+    }
+
+    posX = Math.max(minX, Math.min(posX, maxX));
+    posY = Math.max(minY, Math.min(posY, maxY));
+
+    itemEl.style.left = `${posX}px`;
+    itemEl.style.top = `${posY}px`;
+    itemEl.style.visibility = 'visible';
+
+    addDragEvents(itemEl);
+    stage.appendChild(itemEl);
+  });
+}
+
+// --- ドラッグ＆ドロップ ---
+function addDragEvents(el) {
+  el.addEventListener('mousedown', startDrag);
+  el.addEventListener('touchstart', startDrag, { passive: false });
+}
+
+function startDrag(e) {
+  e.preventDefault();
+  activeItem = e.currentTarget;
+
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+  const rect = activeItem.getBoundingClientRect();
+  touchOffset.x = clientX - (rect.left + rect.width / 2);
+  touchOffset.y = clientY - (rect.top + rect.height / 2);
+
+  activeItem.style.zIndex = '1000';
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('mouseup', endDrag);
+  document.addEventListener('touchend', endDrag);
+}
+
+function onMove(e) {
+  if (!activeItem) return;
+  e.preventDefault();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  
+  activeItem.style.position = 'fixed';
+  activeItem.style.left = `${clientX - touchOffset.x}px`;
+  activeItem.style.top = `${clientY - touchOffset.y}px`;
+}
+
+function endDrag(e) {
+  if (!activeItem) return;
+  activeItem.style.zIndex = '10';
+
+  document.removeEventListener('mousemove', onMove);
+  document.removeEventListener('touchmove', onMove);
+  document.removeEventListener('mouseup', endDrag);
+  document.removeEventListener('touchend', endDrag);
+
+  const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+  const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+
+  activeItem.style.display = 'none';
+  const elemBelow = document.elementFromPoint(clientX, clientY);
+  activeItem.style.display = 'block';
+
+  const targetBox = elemBelow ? elemBelow.closest('.target-box') : null;
+
+  if (targetBox) {
+    const isCustom = (currentLevel === 'custom');
+    const config = isCustom ? { tagType: document.getElementById('custom-tag-type').value } : (LEVEL_CONFIGS[currentLevel] || { tagType: 'name' });
+    const boxTag = targetBox.dataset.tag;
+    const itemTag = (config.tagType === 'name') ? activeItem.dataset.name : activeItem.dataset.category;
+
+    if (boxTag === itemTag) {
+      playSE('drop');
+      
+      boxContents[boxTag].push({
+        name: activeItem.dataset.name,
+        emoji: activeItem.innerText,
+        category: activeItem.dataset.category
+      });
+
+      activeItem.remove();
+      updateBoxRender(boxTag);
+    } else {
+      playSE('wrong');
+      returnToStageSmoothly(activeItem, clientX, clientY);
+    }
+  } else {
+    returnToStageSmoothly(activeItem, clientX, clientY);
+  }
+  activeItem = null;
+}
+
+function returnToStageSmoothly(itemEl, clientX, clientY) {
+  itemEl.style.position = 'absolute';
+  const stage = document.getElementById('game-stage');
+  const stageRect = stage.getBoundingClientRect();
+  
+  let x = clientX - stageRect.left;
+  let y = clientY - stageRect.top;
+  
+  const itemSize = 55;
+  x = Math.max(itemSize/2, Math.min(x, stageRect.width - itemSize/2));
+  y = Math.max(itemSize/2, Math.min(y, stageRect.height - itemSize/2));
+
+  itemEl.style.transition = 'all 0.2s ease-out';
+  itemEl.style.left = `${x}px`;
+  itemEl.style.top = `${y}px`;
+
+  setTimeout(() => { itemEl.style.transition = ''; }, 200);
+}
+
+// 枠内の再描画
+function updateBoxRender(boxTag) {
+  const container = document.getElementById(`drop-area-${boxTag}`);
+  const hintBadge = document.getElementById(`hint-${boxTag}`);
+  container.innerHTML = '';
+
+  const items = boxContents[boxTag];
+  const totalCount = items.length;
+
+  const groupedByName = {};
+  items.forEach(item => {
+    if (!groupedByName[item.name]) groupedByName[item.name] = [];
+    groupedByName[item.name].push(item);
+  });
+
+  Object.keys(groupedByName).sort().forEach(name => {
+    const groupItems = groupedByName[name];
+    const groupEl = document.createElement('div');
+    groupEl.className = 'item-group';
+
+    if (groupItems.length > 0 && targetBoxes.find(b => b.tag === groupItems[0].category)) {
+      const label = document.createElement('div');
+      label.className = 'group-label';
+      label.innerText = name;
+      groupEl.appendChild(label);
+    }
+
+    renderItemsWithBundles(boxTag, name, groupEl, groupItems);
+    container.appendChild(groupEl);
+  });
+
+  if (showComplementHint) {
+    const remainder = totalCount % 10;
+    if (remainder > 0 && totalCount > 0) {
+      hintBadge.style.display = 'inline-block';
+      hintBadge.innerText = `あと ${10 - remainder}こ で 10！`;
+    } else {
+      hintBadge.style.display = 'none';
+    }
+  } else {
+    hintBadge.style.display = 'none';
+  }
+}
+
+function renderItemsWithBundles(boxTag, name, container, itemsList) {
+  const emoji = itemsList[0].emoji;
+  const count = itemsList.length;
+  const key = `${boxTag}_${name}`;
+
+  if (!expandedBundles[key]) {
+    expandedBundles[key] = { tens: 0, fives: 0 };
+  }
+
+  const tensCount = Math.floor(count / 10);
+  const remainderAfter10 = count % 10;
+  const fivesCount = Math.floor(remainderAfter10 / 5);
+  const remainder = remainderAfter10 % 5;
+
+  for (let i = 0; i < tensCount; i++) {
+    const isExpanded = i < expandedBundles[key].tens;
+    if (isExpanded) {
+      const expContainer = document.createElement('div');
+      expContainer.className = 'expanded-items';
+      
+      const foldBtn = document.createElement('div');
+      foldBtn.className = 'fold-btn';
+      foldBtn.innerText = '📁 束にたたむ';
+      foldBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleBundleExpand(key, 'tens', -1);
+      };
+      expContainer.appendChild(foldBtn);
+
+      for (let k = 0; k < 10; k++) {
+        expContainer.appendChild(createEmojiEl(boxTag, itemsList[0]));
+      }
+      container.appendChild(expContainer);
+    } else {
+      const bundle = document.createElement('div');
+      bundle.className = 'bundle-btn ten-bundle';
+      bundle.innerText = '10';
+      bundle.title = 'クリックでひらく';
+      bundle.onclick = () => toggleBundleExpand(key, 'tens', 1);
+      container.appendChild(bundle);
+    }
+  }
+
+  for (let i = 0; i < fivesCount; i++) {
+    const isExpanded = i < expandedBundles[key].fives;
+    if (isExpanded) {
+      const expContainer = document.createElement('div');
+      expContainer.className = 'expanded-items';
+      
+      const foldBtn = document.createElement('div');
+      foldBtn.className = 'fold-btn';
+      foldBtn.innerText = '📁 束にたたむ';
+      foldBtn.onclick = (e) => {
+        e.stopPropagation();
+        toggleBundleExpand(key, 'fives', -1);
+      };
+      expContainer.appendChild(foldBtn);
+
+      for (let k = 0; k < 5; k++) {
+        expContainer.appendChild(createEmojiEl(boxTag, itemsList[0]));
+      }
+      container.appendChild(expContainer);
+    } else {
+      const bundle = document.createElement('div');
+      bundle.className = 'bundle-btn five-bundle';
+      bundle.innerText = '5';
+      bundle.title = 'クリックでひらく';
+      bundle.onclick = () => toggleBundleExpand(key, 'fives', 1);
+      container.appendChild(bundle);
+    }
+  }
+
+  for (let i = 0; i < remainder; i++) {
+    container.appendChild(createEmojiEl(boxTag, itemsList[0]));
+  }
+}
+
+function createEmojiEl(boxTag, itemData) {
+  const el = document.createElement('div');
+  el.className = 'clickable-emoji';
+  el.innerText = itemData.emoji;
+
+  if (currentMode === 'pittari') {
+    el.title = 'クリックで上にもどす';
+    el.onclick = (e) => {
+      e.stopPropagation();
+      returnSingleItemToStage(boxTag, itemData);
+    };
+  }
+  return el;
+}
+
+// 枠から1個だけ上に戻す処理
+function returnSingleItemToStage(boxTag, itemData) {
+  playSE('return');
+
+  // 枠内データから削除
+  const index = boxContents[boxTag].findIndex(i => i.name === itemData.name);
+  if (index !== -1) {
+    boxContents[boxTag].splice(index, 1);
+  }
+
+  // ステージ（上部エリア）に新しく生成して配置
+  const stage = document.getElementById('game-stage');
+  const stageW = stage.clientWidth;
+  const stageH = stage.clientHeight;
+  const itemSize = 55;
+  const padding = 15;
+
+  const posX = getRandomInt(padding + itemSize/2, stageW - padding - itemSize/2);
+  const posY = getRandomInt(padding + itemSize/2, stageH - padding - itemSize/2);
+
+  const itemEl = document.createElement('div');
+  itemEl.className = 'item';
+  itemEl.innerText = itemData.emoji;
+  itemEl.dataset.name = itemData.name;
+  itemEl.dataset.category = itemData.category;
+  itemEl.style.left = `${posX}px`;
+  itemEl.style.top = `${posY}px`;
+  itemEl.style.visibility = 'visible';
+
+  addDragEvents(itemEl);
+  stage.appendChild(itemEl);
+
+  // 枠の再描画
+  updateBoxRender(boxTag);
+}
+
+function toggleBundleExpand(key, type, change) {
+  playSE('pop');
+  if (!expandedBundles[key]) {
+    expandedBundles[key] = { tens: 0, fives: 0 };
+  }
+  expandedBundles[key][type] = Math.max(0, expandedBundles[key][type] + change);
+  const boxTag = key.split('_')[0];
+  updateBoxRender(boxTag);
+}
+
+// --- 回答欄の表示 & 答え合わせ ---
+function renderAnswerInputs() {
+  const container = document.getElementById('answer-inputs');
+  container.innerHTML = '';
+
+  if (currentMode === 'pittari') {
+    return;
+  }
+
+  targetBoxes.forEach(box => {
+    const row = document.createElement('div');
+    row.className = 'answer-row';
+    row.innerHTML = `
+      <span><b>${box.targetTag}</b> :</span>
+      <input type="number" class="answer-input" data-tag="${box.targetTag}" pattern="[0-9]*">
+      <span>こ</span>
+    `;
+    container.appendChild(row);
+  });
+}
+
+function checkAnswers() {
+  let allCorrect = true;
+
+  if (currentMode === 'pittari') {
+    targetBoxes.forEach(targetBoxData => {
+      const tag = targetBoxData.tag;
+      const currentBoxItems = boxContents[tag] || [];
+      const boxMarkEl = document.getElementById(`box-mark-${tag}`);
+
+      if (currentBoxItems.length === targetBoxData.targetCount) {
+        if (boxMarkEl) {
+          boxMarkEl.innerText = '⭕';
+          boxMarkEl.style.color = '#22c55e';
+        }
+      } else {
+        if (boxMarkEl) {
+          boxMarkEl.innerText = '❌';
+          boxMarkEl.style.color = '#ef4444';
+        }
+        allCorrect = false;
+      }
+    });
+  } else {
+    // なかまあつめモード
+    const inputs = document.querySelectorAll('.answer-input');
+    inputs.forEach(input => {
+      const tag = input.dataset.tag;
+      const currentBoxItems = boxContents[tag] || [];
+      const userCount = parseInt(input.value, 10);
+      const boxMarkEl = document.getElementById(`box-mark-${tag}`);
+
+      const isCorrect = (userCount === currentBoxItems.length);
+
+      if (!isNaN(userCount) && isCorrect) {
+        input.style.borderColor = '#22c55e';
+        input.style.backgroundColor = '#f0fdf4';
+        if (boxMarkEl) {
+          boxMarkEl.innerText = '⭕';
+          boxMarkEl.style.color = '#22c55e';
+        }
+      } else {
+        input.style.borderColor = '#ef4444';
+        input.style.backgroundColor = '#fef2f2';
+        if (boxMarkEl) {
+          boxMarkEl.innerText = '❌';
+          boxMarkEl.style.color = '#ef4444';
+        }
+        allCorrect = false;
+      }
+    });
+  }
+
+  if (allCorrect) {
+    playSE('correct');
+    updateInstruction('すごい！ せいかい！');
+    document.getElementById('game-instruction').style.color = "#16a34a";
+
+    if (currentLevel !== 'custom') {
+      const key = `${currentMode}_${currentLevel}`;
+      clearedLevels[key] = true;
+      localStorage.setItem('clearedLevels_nakama2', JSON.stringify(clearedLevels));
+    }
+    
+    showClearEffects();
+    setTimeout(backToTitle, 2500);
+  } else {
+    playSE('wrong');
+    if (currentMode === 'pittari') {
+      updateInstruction('かずが ちがうみたい… もう一度 たしかめてね');
+    } else {
+      updateInstruction('ちがうみたい… もういちど かぞえてね');
+    }
+    document.getElementById('game-instruction').style.color = "#dc2626";
+  }
+}
+
+function updateInstruction(text) {
+  const el = document.getElementById('game-instruction');
+  if (el) {
+    el.innerText = text;
+    el.style.color = "#0369a1";
+  }
+}
+
+// --- クリア演出（紙吹雪） ---
+function showClearEffects() {
+  document.getElementById('clear-overlay').style.display = 'flex';
+  
+  const canvas = document.getElementById('confetti-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = [];
+  const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
+
+  for (let i = 0; i < 120; i++) {
+    particles.push({
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      vx: (Math.random() - 0.5) * 18,
+      vy: (Math.random() - 0.7) * 18,
+      size: Math.random() * 10 + 5,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      rSpeed: (Math.random() - 0.5) * 10
+    });
+  }
+
+  function renderConfetti() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.4;
+      p.rotation += p.rSpeed;
+
+      if (p.y < canvas.height) alive = true;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotation * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      ctx.restore();
+    });
+
+    if (alive) {
+      requestAnimationFrame(renderConfetti);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  renderConfetti();
+}
+
+function getRandomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+</script>
+</body>
+</html>

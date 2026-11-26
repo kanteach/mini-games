@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>四則計算トレーニング</title>
+  <style>
+    :root {
+      --app-font: "UD デジタル 教科書体 N-R", "UD Digital Kyokasho N-R", "BIZ UDPGothic", sans-serif;
+      --app-font-color: #333333;
+      --app-bg-color: #f0f4f8;
+      --app-card-bg-color: #ffffff;
+      --app-font-size: 100px;
+
+      --title-card-width: 800px;
+      --game-card-width: 100vw;
+      --settings-card-width: 800px;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: var(--app-font);
+      background-color: var(--app-bg-color);
+      color: var(--app-font-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      user-select: none;
+      box-sizing: border-box;
+    }
+
+    .container {
+      background-color: var(--app-card-bg-color);
+      padding: 30px;
+      border-radius: 24px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+      width: 95%;
+      min-height: 520px;
+      box-sizing: border-box;
+      text-align: center;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: max-width 0.3s ease, min-height 0.3s ease, border-radius 0.3s ease;
+    }
+
+    .container.full-screen {
+      max-width: 100vw !important;
+      min-height: 100vh !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      width: 100vw !important;
+    }
+
+    .screen {
+      display: none;
+      width: 100%;
+    }
+    .screen.active {
+      display: block;
+    }
+
+    .top-right-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #e9ecef;
+      color: #333;
+      border: 1px solid #ccc;
+      padding: 8px 16px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 10;
+    }
+    .top-right-btn:hover {
+      background: #dee2e6;
+    }
+
+    .bottom-right-btn {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: #ffc107;
+      color: #212529;
+      border: 2px solid #e0a800;
+      padding: 10px 20px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 20px;
+      cursor: pointer;
+      z-index: 10;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      transition: all 0.2s ease;
+    }
+    .bottom-right-btn:hover {
+      background: #e0a800;
+      transform: scale(1.05);
+    }
+
+    .title-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .story-toggle-btn {
+      background-color: #fff;
+      color: #333;
+      border: 2px solid #28a745;
+      padding: 6px 16px;
+      font-size: 18px;
+      font-weight: bold;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: var(--app-font);
+    }
+    .story-toggle-btn.active {
+      background-color: #28a745;
+      color: white;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 3px solid #e0e0e0;
+      margin-bottom: 25px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 12px 6px;
+      border: none;
+      background: none;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #666;
+      border-bottom: 4px solid transparent;
+      font-family: var(--app-font);
+      min-width: 80px;
+    }
+    .tab-btn.active {
+      color: #007bff;
+      border-bottom-color: #007bff;
+    }
+
+    .range-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin: 20px 0;
+      font-size: 24px;
+      flex-wrap: wrap;
+    }
+
+    .stepper-vertical {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .stepper-btn {
+      width: 64px;
+      height: 36px;
+      font-size: 20px;
+      font-weight: bold;
+      border: 2px solid #007bff;
+      background-color: #f8f9fa;
+      color: #007bff;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .stepper-btn:active {
+      background-color: #e2e6ea;
+    }
+
+    .range-group input[type="number"] {
+      width: 64px;
+      height: 48px;
+      font-size: 26px;
+      border: 2px solid #007bff;
+      border-radius: 8px;
+      text-align: center;
+      font-family: var(--app-font);
+      font-weight: bold;
+      box-sizing: border-box;
+      -moz-appearance: textfield;
+    }
+
+    .range-group input[type="number"]::-webkit-inner-spin-button,
+    .range-group input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .error-msg {
+      color: #dc3545;
+      font-size: 18px;
+      font-weight: bold;
+      margin-top: 10px;
+      min-height: 27px;
+    }
+
+    .btn {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 14px 32px;
+      font-size: 22px;
+      font-weight: bold;
+      border-radius: 12px;
+      cursor: pointer;
+      margin: 10px 5px;
+      font-family: var(--app-font);
+    }
+    .btn:hover { background-color: #0056b3; }
+    .btn-secondary { background-color: #6c757d; }
+    .btn-secondary:hover { background-color: #545b62; }
+
+    .setting-item {
+      margin: 18px 0;
+      text-align: left;
+    }
+    .setting-item label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: bold;
+      font-size: 16px;
+    }
+    .setting-item input, .setting-item select {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      box-sizing: border-box;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-family: var(--app-font);
+    }
+
+    #timer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #fff3cd;
+      border: 2px solid #ffeeba;
+      padding: 8px 16px;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #856404;
+    }
+    .timer-progress-bar {
+      height: 8px;
+      background-color: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+      width: 100%;
+    }
+    .timer-progress-fill {
+      height: 100%;
+      background-color: #ffc107;
+      width: 100%;
+      transition: width 1s linear;
+    }
+
+    #problem-screen-wrapper {
+      padding: 10px 0;
+    }
+
+    .story-text {
+      font-size: min(calc(var(--app-font-size) * 0.35), 28px);
+      line-height: 1.4;
+      margin-bottom: 10px;
+      font-weight: bold;
+      white-space: normal;
+      word-break: break-all;
+      max-height: 2.8em;
+      overflow-y: auto;
+      padding: 0 10px;
+    }
+
+    .story-illustration {
+      font-size: min(calc(var(--app-font-size) * 0.4), 32px);
+      margin: 10px 0;
+      white-space: normal;
+      word-break: break-all;
+      max-height: 3.8em;
+      overflow-y: auto;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.2;
+    }
+
+    .icon-slashed {
+      position: relative;
+      display: inline-block;
+    }
+    .icon-slashed::after {
+      content: '＼';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(1.3);
+      color: #e60000;
+      font-weight: 900;
+      font-size: 1.2em;
+      pointer-events: none;
+      line-height: 1;
+      text-shadow: 0 0 2px #ffffff;
+    }
+
+    .group-box {
+      border: 2px dashed #007bff;
+      background-color: #eef6ff;
+      border-radius: 10px;
+      padding: 2px 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      margin: 2px;
+      font-size: min(calc(var(--app-font-size) * 0.38), 30px);
+    }
+    .group-box::before { content: "【"; color: #007bff; font-weight: bold; }
+    .group-box::after { content: "】"; color: #007bff; font-weight: bold; }
+
+    .input-section-container {
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      gap: 12px;
+      margin: 15px 0;
+      font-size: calc(var(--app-font-size) * 0.5);
+      font-weight: bold;
+    }
+
+    .field-group {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .field-label {
+      font-size: 0.6em;
+      font-weight: bold;
+      color: #555;
+      margin-bottom: 4px;
+      height: 1.2em;
+      line-height: 1.2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .eq-sign {
+      align-self: flex-end;
+      padding-bottom: 4px;
+      line-height: 1.2;
+    }
+
+    .formula-box {
+      border: 3px solid #28a745;
+      border-radius: 12px;
+      padding: 2px 12px;
+      min-width: 3.2em;
+      text-align: center;
+      background: #f8f9fa;
+      min-height: 1.2em;
+      line-height: 1.2;
+      color: var(--app-font-color);
+      font-size: 1em;
+      box-sizing: border-box;
+    }
+    .formula-box.active-field {
+      border-color: #28a745;
+      box-shadow: 0 0 8px rgba(40, 167, 69, 0.5);
+    }
+
+    .answer-display-box {
+      font-size: 1em;
+      font-family: var(--app-font);
+      min-width: 2.2em;
+      padding: 2px 10px;
+      text-align: center;
+      border: 3px solid #007bff;
+      border-radius: 12px;
+      color: var(--app-font-color);
+      min-height: 1.2em;
+      line-height: 1.2;
+      background: #ffffff;
+      box-sizing: border-box;
+    }
+    .answer-display-box.active-field {
+      border-color: #007bff;
+      box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
+    }
+
+    .answer-input-keypad {
+      font-size: 1em;
+      font-family: var(--app-font);
+      width: 3em;
+      text-align: center;
+      border: 3px solid #007bff;
+      border-radius: 12px;
+      padding: 2px 6px;
+      color: var(--app-font-color);
+      box-sizing: border-box;
+    }
+
+    .keypad-container {
+      display: grid;
+      gap: 8px;
+      margin: 15px auto 0 auto;
+    }
+    
+    .keypad-container.cols-4 {
+      grid-template-columns: repeat(4, 1fr);
+      max-width: 360px;
+    }
+
+    .keypad-btn {
+      background-color: #f8f9fa;
+      color: #333;
+      border: 2px solid #ced4da;
+      border-radius: 10px;
+      font-size: 24px;
+      font-weight: bold;
+      padding: 12px 0;
+      cursor: pointer;
+      font-family: var(--app-font);
+    }
+    .keypad-btn:active { background-color: #e2e6ea; }
+    .keypad-btn-fn { background-color: #e9ecef; color: #495057; }
+    .keypad-btn-op { background-color: #e2e6ea; color: #007bff; }
+    .keypad-btn-enter { background-color: #007bff; color: white; border-color: #0056b3; }
+
+    .overlay-mark {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 200px;
+      font-weight: bold;
+      pointer-events: none;
+      display: none;
+    }
+    .mark-correct { color: rgba(220, 53, 69, 0.85); }
+    .mark-wrong { color: rgba(0, 123, 255, 0.85); }
+
+    .result-modal {
+      display: none;
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: inherit;
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .result-card {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      max-width: 80%;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      animation: popIn 0.3s ease;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.8); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="main-container" class="container">
+  <!-- タイトル画面 -->
+  <div id="title-screen" class="screen active">
+    <button class="top-right-btn" onclick="showScreen('settings-screen')">⚙️ 設定</button>
+    <button class="bottom-right-btn" onclick="startTimeAttack()">⏱️ タイムアタック</button>
+    
+    <div class="title-header">
+      <h2 style="font-size: 30px; margin: 0;">四則計算トレーニング</h2>
+      <button id="story-toggle-btn" class="story-toggle-btn" onclick="toggleStoryMode()">📝 ぶんしょうだい</button>
+    </div>
+    
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('add')">たしざん</button>
+      <button class="tab-btn" onclick="switchTab('sub')">ひきざん</button>
+      <button class="tab-btn" onclick="switchTab('mul')">かけざん</button>
+      <button class="tab-btn" onclick="switchTab('div')">わりざん</button>
+      <button class="tab-btn" onclick="switchTab('mix')">ミックス</button>
+    </div>
+
+    <div class="tab-content">
+      <p style="font-size: 18px;">数字の範囲を設定してください</p>
+      <div class="range-group">
+        <div class="stepper-vertical">
+          <button type="button" class="stepper-btn" onmousedown="startStep('left-min', 1)" onmouseup="stopStep()" onmouseleave="stopStep()" ontouchstart="startStep('left-min', 1)" ontouchend="stopStep()">▲</button>
+          <input type="number" id="left-min" value="1" min="0" oninput="validateAndValidateConfig()" onclick="this.select()">
+          <button type="button" class="stepper-btn" onmousedown="startStep('left-min', -1)" onmouseup="stopStep()" onmouseleave="stopStep()" ontouchstart="startStep('left-min', -1)" ontouchend="stopStep()">▼</button>
+        </div>
+        <span>〜</span>
+        <div class="stepper-vertical">
+          <button type="button" class="stepper-btn" onmousedown="startStep('left-max', 1)" onmouseup="stopStep()" onmouseleave="stopStep()" ontouchstart="startStep('left-max', 1)" ontouchend="stopStep()">▲</button>
+          <input type="number" id="left-max" value="5" min="0" oninput="validateAndValidateConfig()" onclick="this.select()">
+          <button type="button" class="stepper-btn" onmousedown="startStep('left-max', -1)" onmouseup="stopStep()" onmouseleave="stopStep()" ontouchstart="startStep('left-max', -1)" ontouchend="stopStep()">▼</button>
+        </div>
+
+        <span id="op-symbol" style="font-weight: bold; margin: 0 4px;">+</span>
+
+        <div class="stepper-vertical">
+          <button type="button" class="stepper-btn" onmousedown="startStep('right-min', 1)" onmouseup="stopStep()" onmouseleave="stopStep()" ontouchstart="startStep('right-min', 1)" ontouchend="stopStep()">▲</button>
+          <input type="number" id="right-min" value="2" min="0" oninput="validateAndValidateConfig()" onclick="this.select()">
+          <button type="button" class="stepper-btn" onmousedown="startStep('right-min', -1)" onmouseup="stopStep()" onmouseleave="stopStep()" ontouchstart="startStep('right-min', -1)" ontouchend="stopStep()">▼</button>
+        </div>
+        <span>〜</span>
+        <div class="stepper-vertical">
+          <button type="button" class="stepper-btn" onmousedown="startStep('right-max', 1)" onmouseup="stopStep()" onmouseleave="stopStep()" ontouchstart="startStep('right-max', 1)" ontouchend="stopStep()">▲</button>
+          <input type="number" id="right-max" value="4" min="0" oninput="validateAndValidateConfig()" onclick="this.select()">
+          <button type="button" class="stepper-btn" onmousedown="startStep('right-max', -1)" onmouseup="stopStep()" onmouseleave="stopStep()" ontouchstart="startStep('right-max', -1)" ontouchend="stopStep()">▼</button>
+        </div>
+      </div>
+
+      <div id="error-msg" class="error-msg"></div>
+      <button class="btn" id="start-btn" onclick="startGame(false)" style="margin-top: 15px;">スタート</button>
+    </div>
+  </div>
+
+  <!-- 問題画面 -->
+  <div id="game-screen" class="screen">
+    <button class="top-right-btn" onclick="quitGame()">🏠 タイトルへ</button>
+
+    <div id="timer-header" style="display: none;">
+      <div>⏱️ のこりじかん: <span id="timer-count">60</span>びょう</div>
+      <div>せいかい: <span id="score-count">0</span>もん</div>
+      <div style="width: 100%; flex-basis: 100%;">
+        <div class="timer-progress-bar">
+          <div id="timer-progress-fill" class="timer-progress-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="problem-screen-wrapper">
+      <div id="story-container" style="display: none;">
+        <div id="story-text" class="story-text"></div>
+        <div id="story-illustration" class="story-illustration"></div>
+      </div>
+
+      <div class="input-section-container">
+        <span id="math-problem-text" style="display: none;"></span>
+
+        <div id="formula-group" class="field-group">
+          <span id="label-formula" class="field-label">しき</span>
+          <span id="formula-display" class="formula-box"></span>
+        </div>
+
+        <span id="eq-sign" class="eq-sign">＝</span>
+
+        <div id="answer-group" class="field-group">
+          <span id="label-answer" class="field-label">こたえ</span>
+          <span id="answer-display" class="answer-display-box"></span>
+          <input type="number" id="answer-input" class="answer-input-keypad" autofocus onclick="this.select()" style="display: none;">
+        </div>
+      </div>
+
+      <button class="btn" id="check-btn" onclick="checkAnswer()">こたえる</button>
+
+      <div id="keypad-area" class="keypad-container cols-4"></div>
+
+      <div id="next-actions" style="display: none; margin-top: 15px;">
+        <button class="btn" onclick="nextProblem()">つぎへ</button>
+      </div>
+    </div>
+    <div id="mark-correct" class="overlay-mark mark-correct">◯</div>
+    <div id="mark-wrong" class="overlay-mark mark-wrong">×</div>
+
+    <div id="result-modal" class="result-modal">
+      <div class="result-card">
+        <h2 style="font-size: 32px; color: #ff9800; margin-top: 0;">⏱️ タイムアップ！</h2>
+        <p id="result-score" style="font-size: 36px; font-weight: bold; margin: 15px 0; color: #333;"></p>
+        <p id="result-praise" style="font-size: 26px; font-weight: bold; color: #28a745; margin-bottom: 25px;"></p>
+        <button class="btn" onclick="quitGame()">タイトルへもどる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 設定画面 -->
+  <div id="settings-screen" class="screen">
+    <h2 style="font-size: 28px; margin-top: 0;">設定</h2>
+
+    <div class="setting-item">
+      <label for="input-mode">回答入力モード</label>
+      <select id="input-mode" onchange="applySettings()">
+        <option value="calculator" selected>画面電卓 (1 2 3 + / 4 5 6 - / 7 8 9 × / C 0 ＝ ÷)</option>
+        <option value="keyboard">直接入力 (キーボード)</option>
+      </select>
+    </div>
+
+    <div class="setting-item">
+      <label for="size-title-screen">タイトル画面の枠サイズ</label>
+      <select id="size-title-screen" onchange="applySettings()">
+        <option value="600px">小 (600px)</option>
+        <option value="800px" selected>中 (800px)</option>
+        <option value="full">画面全画面（100%）</option>
+      </select>
+    </div>
+
+    <div class="setting-item">
+      <label for="size-game-screen">問題画面の枠サイズ</label>
+      <select id="size-game-screen" onchange="applySettings()">
+        <option value="600px">小 (600px)</option>
+        <option value="800px">中 (800px)</option>
+        <option value="full" selected>画面全画面（100%）</option>
+      </select>
+    </div>
+
+    <div class="setting-item">
+      <label for="size-settings-screen">設定画面の枠サイズ</label>
+      <select id="size-settings-screen" onchange="applySettings()">
+        <option value="600px">小 (600px)</option>
+        <option value="800px" selected>中 (800px)</option>
+        <option value="full">画面全画面（100%）</option>
+      </select>
+    </div>
+
+    <div class="setting-item">
+      <label for="font-size">文字サイズ (px)</label>
+      <input type="number" id="font-size" value="100" min="24" max="200" onchange="applySettings()" onclick="this.select()">
+    </div>
+
+    <div class="setting-item">
+      <label style="cursor: pointer;">
+        <input type="checkbox" id="sound-enable" checked style="width: auto;"> サウンドを有効にする
+      </label>
+    </div>
+
+    <div class="setting-item">
+      <label for="story-require-formula">文章問題の解答形式</label>
+      <select id="story-require-formula" onchange="applySettings()">
+        <option value="true" selected>式と答えの両方を入力する (例: 3+4=7)</option>
+        <option value="false">答えのみを入力する</option>
+      </select>
+    </div>
+
+    <div class="setting-item">
+      <label for="story-hint-enable">文章問題のヒント</label>
+      <select id="story-hint-enable" onchange="applySettings()">
+        <option value="true" selected>あり (文章の下にイラストを表示)</option>
+        <option value="false">なし (イラストを非表示)</option>
+      </select>
+    </div>
+
+    <button class="btn btn-secondary" onclick="showScreen('title-screen')">もどる</button>
+  </div>
+</div>
+
+<script>
+  let currentTab = 'add';
+  let isStoryMode = false;
+  let currentScreenId = 'title-screen';
+  let currentProblem = { num1: 0, num2: 0, op: '+', answer: 0, storyText: '', iconHtml: '', expectedFormula: '' };
+  let keypadValue = '';
+  let formulaValue = '';
+  let isFormulaPhase = false;
+
+  let isTimeAttack = false;
+  let timeRemaining = 60;
+  let score = 0;
+  let timerInterval = null;
+
+  let stepTimer = null;
+  let stepInterval = null;
+
+  const itemItems = [
+    { name: 'りんご', unit: 'こ', action: 'たべた', icon: '🍎' },
+    { name: 'みかん', unit: 'こ', action: 'たべた', icon: '🍊' },
+    { name: 'けーき', unit: 'こ', action: 'たべた', icon: '🍰' },
+    { name: 'くっきー', unit: 'こ', action: 'たべた', icon: '🍪' },
+    { name: 'あめ', unit: 'こ', action: 'たべた', icon: '🍬' },
+    { name: 'ちょこれーと', unit: 'こ', action: 'たべた', icon: '🍫' },
+    { name: 'いちご', unit: 'こ', action: 'たべた', icon: '🍓' },
+    { name: 'どーなつ', unit: 'こ', action: 'たべた', icon: '🍩' },
+    { name: 'うさぎ', unit: 'とう', action: 'かえった', icon: '🐰' },
+    { name: 'ねこ', unit: 'ひき', action: 'かえった', icon: '🐱' },
+    { name: 'いぬ', unit: 'ぴき', action: 'かえった', icon: '🐶' },
+    { name: 'きんぎょ', unit: 'ひき', action: 'あげた', icon: '🐠' },
+    { name: 'どんぐり', unit: 'こ', action: 'あげた', icon: '🌰' },
+    { name: 'おはじき', unit: 'こ', action: 'あげた', icon: '🔴' },
+    { name: 'しーる', unit: 'まい', action: 'つかった', icon: '⭐' },
+    { name: 'おりがみ', unit: 'まい', action: 'つかった', icon: '📄' },
+    { name: 'えんぴつ', unit: 'ぽん', action: 'あげた', icon: '✏️' },
+    { name: 'けしごむ', unit: 'こ', action: 'あげた', icon: '🧹' },
+    { name: 'みにかー', unit: 'だい', action: 'あげた', icon: '🚗' },
+    { name: 'ふうせん', unit: 'こ', action: 'われた', icon: '🎈' },
+    { name: 'はな', unit: 'ほん', action: 'あげた', icon: '🌸' },
+    { name: 'ほん', unit: 'さつ', action: 'あげた', icon: '📚' }
+  ];
+
+  function createSubIllustrationHtml(item, n1, n2) {
+    let html = '<div>';
+    const slashStartIndex = n1 - n2;
+    for (let i = 0; i < n1; i++) {
+      if (i >= slashStartIndex) {
+        html += `<span class="icon-slashed">${item.icon}</span>`;
+      } else {
+        html += `<span>${item.icon}</span>`;
+      }
+    }
+    html += ` <span style="font-size: 0.8em; color: #666; margin-left: 6px;">(${n2}${item.unit} ${item.action})</span>`;
+    html += '</div>';
+    return html;
+  }
+
+  const storyTemplates = {
+    add: [
+      {
+        text: (item, n1, n2) => `${item.name}が ${n1} ${item.unit} あります。さらに ${n2} ${item.unit} もらうと、ぜんぶで なん${item.unit}に なりますか。`,
+        icon: (item, n1, n2) => `<div>${item.icon.repeat(n1)} ➕ ${item.icon.repeat(n2)}</div>`
+      },
+      {
+        text: (item, n1, n2) => `こうえんに ${item.name}が ${n1} ${item.unit} います。あとから ${n2} ${item.unit} やってくると、ぜんぶで なん${item.unit}に なりますか。`,
+        icon: (item, n1, n2) => `<div>${item.icon.repeat(n1)} ➕ ${item.icon.repeat(n2)}</div>`
+      },
+      {
+        text: (item, n1, n2) => `あかい はこに ${item.name}が ${n1} ${item.unit}、あおい はこに ${n2} ${item.unit} はいっています。あわせて なん${item.unit}に なりますか。`,
+        icon: (item, n1, n2) => `<div>${item.icon.repeat(n1)} ➕ ${item.icon.repeat(n2)}</div>`
+      }
+    ],
+    sub: [
+      {
+        text: (item, n1, n2) => `${item.name}が ${n1} ${item.unit} あります。${n2} ${item.unit} たべると、のこりは なん${item.unit}に なりますか。`,
+        icon: (item, n1, n2) => createSubIllustrationHtml(item, n1, n2)
+      },
+      {
+        text: (item, n1, n2) => `${item.name}が ${n1} ${item.unit} あります。おともだちに ${n2} ${item.unit} あげると、のこりは なん${item.unit}に なりますか。`,
+        icon: (item, n1, n2) => createSubIllustrationHtml(item, n1, n2)
+      }
+    ],
+    mul: [
+      {
+        text: (item, n1, n2) => `1つの おさらに ${item.name}が ${n1} ${item.unit}ずつ のっています。${n2} おさらで ぜんぶで なん${item.unit}に なりますか。`,
+        icon: (item, n1, n2) => Array(n2).fill(`<span class="group-box">${item.icon.repeat(n1)}</span>`).join('')
+      },
+      {
+        text: (item, n1, n2) => `1にんに ${item.name}を ${n1} ${item.unit}ずつ くばります。${n2} にんに くばると、ぜんぶで なん${item.unit} ひつようですか。`,
+        icon: (item, n1, n2) => Array(n2).fill(`<span class="group-box">${item.icon.repeat(n1)}</span>`).join('')
+      },
+      {
+        text: (item, n1, n2) => `1つの はこに ${item.name}が ${n1} ${item.unit}ずつ はいっています。${n2} はこで ぜんぶで なん${item.unit}に なりますか。`,
+        icon: (item, n1, n2) => Array(n2).fill(`<span class="group-box">${item.icon.repeat(n1)}</span>`).join('')
+      }
+    ],
+    div: [
+      {
+        text: (item, n1, n2) => `${n1} ${item.unit}ある ${item.name}を ${n2} にんで おなじかずずつ わけます。1にんぶんの ${item.name}は なん${item.unit}に なりますか。`,
+        icon: (item, n1, n2) => {
+          const perGroup = Math.floor(n1 / n2);
+          return Array(n2).fill(`<span class="group-box">${item.icon.repeat(perGroup)}</span>`).join('');
+        }
+      },
+      {
+        text: (item, n1, n2) => `${n1} ${item.unit}の ${item.name}を ${n2} つの はこに おなじかずずつ いれます。1つの はこに なん${item.unit}ずつ はいりますか。`,
+        icon: (item, n1, n2) => {
+          const perGroup = Math.floor(n1 / n2);
+          return Array(n2).fill(`<span class="group-box">${item.icon.repeat(perGroup)}</span>`).join('');
+        }
+      }
+    ]
+  };
+
+  const tabConfigs = {
+    add: { symbol: '+', lMin: 1, lMax: 5, rMin: 2, rMax: 4 },
+    sub: { symbol: '-', lMin: 5, lMax: 9, rMin: 1, rMax: 4 },
+    mul: { symbol: '×', lMin: 1, lMax: 9, rMin: 1, rMax: 9 },
+    div: { symbol: '÷', lMin: 2, lMax: 9, rMin: 1, rMax: 9 },
+    mix: { symbol: '？', lMin: 1, lMax: 9, rMin: 1, rMax: 9 }
+  };
+
+  function toggleStoryMode() {
+    isStoryMode = !isStoryMode;
+    const btn = document.getElementById('story-toggle-btn');
+    if (isStoryMode) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  }
+
+  function startStep(inputId, delta) {
+    stepVal(inputId, delta);
+    stopStep();
+    stepTimer = setTimeout(() => {
+      stepInterval = setInterval(() => { stepVal(inputId, delta); }, 100);
+    }, 200);
+  }
+
+  function stopStep() {
+    if (stepTimer) clearTimeout(stepTimer);
+    if (stepInterval) clearInterval(stepInterval);
+    stepTimer = null;
+    stepInterval = null;
+  }
+
+  function stepVal(inputId, delta) {
+    const el = document.getElementById(inputId);
+    let val = parseInt(el.value, 10) || 0;
+    val += delta;
+    if (val < 0) val = 0;
+    el.value = val;
+
+    if (inputId === 'left-min') {
+      let lMax = parseInt(document.getElementById('left-max').value, 10) || 0;
+      if (val > lMax) document.getElementById('left-max').value = val;
+    } else if (inputId === 'left-max') {
+      let lMin = parseInt(document.getElementById('left-min').value, 10) || 0;
+      if (val < lMin) document.getElementById('left-min').value = val;
+    } else if (inputId === 'right-min') {
+      let rMax = parseInt(document.getElementById('right-max').value, 10) || 0;
+      if (val > rMax) document.getElementById('right-max').value = val;
+    } else if (inputId === 'right-max') {
+      let rMin = parseInt(document.getElementById('right-min').value, 10) || 0;
+      if (val < rMin) document.getElementById('right-min').value = val;
+    }
+
+    validateAndValidateConfig();
+  }
+
+  function switchTab(tab) {
+    saveCurrentTabConfig();
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+
+    const config = tabConfigs[tab];
+    document.getElementById('op-symbol').textContent = config.symbol;
+    document.getElementById('left-min').value = config.lMin;
+    document.getElementById('left-max').value = config.lMax;
+    document.getElementById('right-min').value = config.rMin;
+    document.getElementById('right-max').value = config.rMax;
+
+    validateAndValidateConfig();
+  }
+
+  function saveCurrentTabConfig() {
+    tabConfigs[currentTab].lMin = parseInt(document.getElementById('left-min').value) || 0;
+    tabConfigs[currentTab].lMax = parseInt(document.getElementById('left-max').value) || 0;
+    tabConfigs[currentTab].rMin = parseInt(document.getElementById('right-min').value) || 0;
+    tabConfigs[currentTab].rMax = parseInt(document.getElementById('right-max').value) || 0;
+  }
+
+  function validateAndValidateConfig() {
+    let lMin = parseInt(document.getElementById('left-min').value) || 0;
+    let lMax = parseInt(document.getElementById('left-max').value) || 0;
+    let rMin = parseInt(document.getElementById('right-min').value) || 0;
+    let rMax = parseInt(document.getElementById('right-max').value) || 0;
+
+    if (lMax < lMin) { lMax = lMin; document.getElementById('left-max').value = lMax; }
+    if (rMax < rMin) { rMax = rMin; document.getElementById('right-max').value = rMax; }
+
+    // ひきざんの場合、第2項の最大値（right-max）が第1項の最大値（left-max）を超えないようにストッパーを制御
+    if (currentTab === 'sub') {
+      if (rMax > lMax) {
+        rMax = lMax;
+        document.getElementById('right-max').value = rMax;
+        if (rMin > rMax) {
+          rMin = rMax;
+          document.getElementById('right-min').value = rMin;
+        }
+      }
+    }
+
+    saveCurrentTabConfig();
+
+    const errorMsgEl = document.getElementById('error-msg');
+    const startBtn = document.getElementById('start-btn');
+
+    if (currentTab === 'sub') {
+      let hasValidPair = false;
+      for (let l = lMin; l <= lMax; l++) {
+        for (let r = rMin; r <= rMax; r++) {
+          if (l >= r) {
+            hasValidPair = true;
+            break;
+          }
+        }
+        if (hasValidPair) break;
+      }
+      if (!hasValidPair) {
+        errorMsgEl.textContent = "ひける すうじの くみあわせが ないよ！";
+        startBtn.disabled = true;
+        return false;
+      }
+    }
+
+    if (currentTab === 'div' || currentTab === 'mix') {
+      const validPairs = getValidDivPairs(lMin, lMax, rMin, rMax);
+      if (validPairs.length === 0) {
+        errorMsgEl.textContent = "わりきれる すうじが ないよ！";
+        startBtn.disabled = true;
+        return false;
+      }
+    }
+
+    errorMsgEl.textContent = "";
+    startBtn.disabled = false;
+    return true;
+  }
+
+  function showScreen(screenId) {
+    currentScreenId = screenId;
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(screenId).classList.add('active');
+    updateContainerSize();
+  }
+
+  function updateContainerSize() {
+    const container = document.getElementById('main-container');
+    const selectId = 'size-' + currentScreenId;
+    const selectedSize = document.getElementById(selectId) ? document.getElementById(selectId).value : '800px';
+
+    if (selectedSize === 'full') {
+      container.classList.add('full-screen');
+      container.style.maxWidth = '';
+    } else {
+      container.classList.remove('full-screen');
+      container.style.maxWidth = selectedSize;
+    }
+  }
+
+  function applySettings() {
+    const size = document.getElementById('font-size').value;
+    document.documentElement.style.setProperty('--app-font-size', size + 'px');
+    updateContainerSize();
+    setupInputModeUI();
+  }
+
+  function setupInputModeUI() {
+    const mode = document.getElementById('input-mode').value;
+    const inputKeypad = document.getElementById('answer-input');
+    const displayBox = document.getElementById('answer-display');
+    const checkBtn = document.getElementById('check-btn');
+    const keypadArea = document.getElementById('keypad-area');
+
+    if (mode === 'keyboard') {
+      inputKeypad.style.display = 'inline-block';
+      displayBox.style.display = 'none';
+      checkBtn.style.display = 'inline-block';
+      keypadArea.style.display = 'none';
+    } else {
+      inputKeypad.style.display = 'none';
+      displayBox.style.display = 'inline-block';
+      checkBtn.style.display = 'none';
+      keypadArea.style.display = 'grid';
+      renderKeypad();
+    }
+  }
+
+  function renderKeypad() {
+    const keypadArea = document.getElementById('keypad-area');
+    keypadArea.innerHTML = '';
+
+    const layout = ['1', '2', '3', '+', '4', '5', '6', '-', '7', '8', '9', '×', 'C', '0', '＝', '÷'];
+
+    layout.forEach(key => {
+      const btn = document.createElement('button');
+      btn.textContent = (key === '＝') ? '決定' : key;
+      btn.className = 'keypad-btn';
+
+      if (['+', '-', '×', '÷'].includes(key)) {
+        btn.classList.add('keypad-btn-op');
+      }
+
+      if (key === 'C') {
+        btn.classList.add('keypad-btn-fn');
+        btn.onclick = () => pressKeypad('C');
+      } else if (key === '＝') {
+        btn.classList.add('keypad-btn-enter');
+        btn.onclick = () => pressKeypad('ENTER');
+      } else {
+        btn.onclick = () => pressKeypad(key);
+      }
+      keypadArea.appendChild(btn);
+    });
+  }
+
+  function pressKeypad(action) {
+    if (document.getElementById('next-actions').style.display !== 'none') return;
+
+    if (isFormulaPhase) {
+      if (action === 'C') {
+        formulaValue = '';
+      } else if (action === 'ENTER') {
+        checkAnswer();
+        return;
+      } else {
+        if (formulaValue.length < 10) formulaValue += action;
+      }
+      document.getElementById('formula-display').textContent = formulaValue;
+    } else {
+      if (action === 'C') {
+        keypadValue = '';
+      } else if (action === 'ENTER') {
+        checkAnswer();
+        return;
+      } else {
+        if (keypadValue.length < 5) keypadValue += action;
+      }
+      document.getElementById('answer-display').textContent = keypadValue;
+    }
+  }
+
+  function startGame(timeAttackMode = false) {
+    if (!validateAndValidateConfig()) {
+      return;
+    }
+
+    isTimeAttack = timeAttackMode;
+    score = 0;
+    timeRemaining = 60;
+
+    document.getElementById('result-modal').style.display = 'none';
+
+    if (isTimeAttack) {
+      document.getElementById('timer-header').style.display = 'flex';
+      document.getElementById('timer-count').textContent = timeRemaining;
+      document.getElementById('score-count').textContent = score;
+      document.getElementById('timer-progress-fill').style.width = '100%';
+
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        timeRemaining--;
+        document.getElementById('timer-count').textContent = timeRemaining;
+        const percent = (timeRemaining / 60) * 100;
+        document.getElementById('timer-progress-fill').style.width = percent + '%';
+
+        if (timeRemaining <= 0) {
+          endGame();
+        }
+      }, 1000);
+    } else {
+      document.getElementById('timer-header').style.display = 'none';
+      if (timerInterval) clearInterval(timerInterval);
+    }
+
+    showScreen('game-screen');
+    nextProblem();
+  }
+
+  function startTimeAttack() {
+    startGame(true);
+  }
+
+  function endGame() {
+    if (timerInterval) clearInterval(timerInterval);
+    playSound('correct');
+
+    document.getElementById('result-score').textContent = `${score} 問 正解！`;
+
+    let praise = "";
+    if (score === 0) {
+      praise = "つぎは がんばろう！";
+    } else if (score < 3) {
+      praise = `${score}もん せいかい！ しっかり とけたね！`;
+    } else if (score < 5) {
+      praise = `${score}もん せいかい！ すごいぞ！ そのちょうし！`;
+    } else if (score < 10) {
+      praise = `${score}もん せいかい！ すばらしい！ けいさん マスターだね！`;
+    } else {
+      praise = `${score}もん いじょう せいかい！ かんぺき！ きみは けいさん はかせだ！`;
+    }
+
+    document.getElementById('result-praise').textContent = praise;
+    document.getElementById('result-modal').style.display = 'flex';
+  }
+
+  function quitGame() {
+    if (timerInterval) clearInterval(timerInterval);
+    document.getElementById('result-modal').style.display = 'none';
+    showScreen('title-screen');
+  }
+
+  function getValidDivPairs(lMin, lMax, rMin, rMax) {
+    const validPairs = [];
+    for (let l = lMin; l <= lMax; l++) {
+      for (let r = Math.max(1, rMin); r <= rMax; r++) {
+        if (l % r === 0) {
+          validPairs.push({ num1: l, num2: r });
+        }
+      }
+    }
+    return validPairs;
+  }
+
+  function generateDivNumbers(lMin, lMax, rMin, rMax) {
+    const validPairs = getValidDivPairs(lMin, lMax, rMin, rMax);
+    if (validPairs.length > 0) {
+      return validPairs[getRandomInt(0, validPairs.length - 1)];
+    }
+    return null;
+  }
+
+  function createStoryData(selectedOp, lMin, lMax, rMin, rMax) {
+    const item = itemItems[getRandomInt(0, itemItems.length - 1)];
+    let n1, n2, ans, story, expectedFormula, iconHtml = '';
+
+    if (selectedOp === '+') {
+      n1 = getRandomInt(lMin, lMax);
+      n2 = getRandomInt(rMin, rMax);
+      ans = n1 + n2;
+      const tpl = storyTemplates.add[getRandomInt(0, storyTemplates.add.length - 1)];
+      story = tpl.text(item, n1, n2);
+      expectedFormula = `${n1}+${n2}`;
+      iconHtml = tpl.icon(item, n1, n2);
+
+    } else if (selectedOp === '-') {
+      let validSubPairs = [];
+      for (let l = lMin; l <= lMax; l++) {
+        for (let r = rMin; r <= rMax; r++) {
+          if (l >= r) validSubPairs.push({ n1: l, n2: r });
+        }
+      }
+      const pair = validSubPairs[getRandomInt(0, validSubPairs.length - 1)];
+      n1 = pair.n1;
+      n2 = pair.n2;
+      ans = n1 - n2;
+      const tpl = storyTemplates.sub[getRandomInt(0, storyTemplates.sub.length - 1)];
+      story = tpl.text(item, n1, n2);
+      expectedFormula = `${n1}-${n2}`;
+      iconHtml = tpl.icon(item, n1, n2);
+
+    } else if (selectedOp === '×') {
+      n1 = getRandomInt(lMin, lMax);
+      n2 = getRandomInt(rMin, rMax);
+      ans = n1 * n2;
+      const tpl = storyTemplates.mul[getRandomInt(0, storyTemplates.mul.length - 1)];
+      story = tpl.text(item, n1, n2);
+      expectedFormula = `${n1}×${n2}`;
+      iconHtml = tpl.icon(item, n1, n2);
+
+    } else if (selectedOp === '÷') {
+      const pair = generateDivNumbers(lMin, lMax, rMin, rMax);
+      n1 = pair.num1;
+      n2 = pair.num2;
+      ans = Math.floor(n1 / n2);
+      const tpl = storyTemplates.div[getRandomInt(0, storyTemplates.div.length - 1)];
+      story = tpl.text(item, n1, n2);
+      expectedFormula = `${n1}÷${n2}`;
+      iconHtml = tpl.icon(item, n1, n2);
+    }
+
+    return { num1: n1, num2: n2, op: selectedOp, answer: ans, storyText: story, iconHtml: iconHtml, expectedFormula: expectedFormula };
+  }
+
+  function generateProblem() {
+    const config = tabConfigs[currentTab];
+    let selectedOp = config.symbol;
+
+    if (currentTab === 'mix') {
+      const ops = ['+', '-', '×', '÷'];
+      if (getValidDivPairs(config.lMin, config.lMax, config.rMin, config.rMax).length === 0) {
+        ops.splice(ops.indexOf('÷'), 1);
+      }
+      selectedOp = ops[getRandomInt(0, ops.length - 1)];
+    }
+
+    if (isStoryMode) {
+      let targetOp = selectedOp;
+      if (currentTab === 'add') targetOp = '+';
+      if (currentTab === 'sub') targetOp = '-';
+      if (currentTab === 'mul') targetOp = '×';
+      if (currentTab === 'div') targetOp = '÷';
+
+      return createStoryData(targetOp, config.lMin, config.lMax, config.rMin, config.rMax);
+    }
+
+    let n1, n2, ans;
+    if (selectedOp === '+') {
+      n1 = getRandomInt(config.lMin, config.lMax);
+      n2 = getRandomInt(config.rMin, config.rMax);
+      ans = n1 + n2;
+    } else if (selectedOp === '-') {
+      let validSubPairs = [];
+      for (let l = config.lMin; l <= config.lMax; l++) {
+        for (let r = config.rMin; r <= config.rMax; r++) {
+          if (l >= r) validSubPairs.push({ n1: l, n2: r });
+        }
+      }
+      const pair = validSubPairs[getRandomInt(0, validSubPairs.length - 1)];
+      n1 = pair.n1;
+      n2 = pair.n2;
+      ans = n1 - n2;
+    } else if (selectedOp === '×') {
+      n1 = getRandomInt(config.lMin, config.lMax);
+      n2 = getRandomInt(config.rMin, config.rMax);
+      ans = n1 * n2;
+    } else if (selectedOp === '÷') {
+      const pair = generateDivNumbers(config.lMin, config.lMax, config.rMin, config.rMax);
+      n1 = pair.num1;
+      n2 = pair.num2;
+      ans = Math.floor(n1 / n2);
+    }
+    return { num1: n1, num2: n2, op: selectedOp, answer: ans, storyText: '', iconHtml: '', expectedFormula: '' };
+  }
+
+  function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function nextProblem() {
+    currentProblem = generateProblem();
+    keypadValue = '';
+    formulaValue = '';
+
+    const requireFormula = document.getElementById('story-require-formula').value === 'true';
+    const showHint = document.getElementById('story-hint-enable').value === 'true';
+
+    const formulaGroup = document.getElementById('formula-group');
+    const answerGroup = document.getElementById('answer-group');
+    const labelAnswer = document.getElementById('label-answer');
+    const formulaDisplay = document.getElementById('formula-display');
+    const mathProblemText = document.getElementById('math-problem-text');
+    const storyIllustration = document.getElementById('story-illustration');
+
+    if (isStoryMode) {
+      document.getElementById('story-container').style.display = 'block';
+      document.getElementById('story-text').textContent = currentProblem.storyText;
+      
+      if (showHint) {
+        storyIllustration.style.display = 'flex';
+        storyIllustration.innerHTML = currentProblem.iconHtml;
+      } else {
+        storyIllustration.style.display = 'none';
+        storyIllustration.innerHTML = '';
+      }
+
+      if (requireFormula) {
+        isFormulaPhase = true;
+        formulaGroup.style.display = 'inline-flex';
+        labelAnswer.style.visibility = 'visible';
+        formulaDisplay.textContent = '';
+        mathProblemText.style.display = 'none';
+
+        formulaDisplay.classList.add('active-field');
+        document.getElementById('answer-display').classList.remove('active-field');
+      } else {
+        isFormulaPhase = false;
+        formulaGroup.style.display = 'none';
+        labelAnswer.style.visibility = 'visible';
+        mathProblemText.style.display = 'none';
+
+        document.getElementById('answer-display').classList.add('active-field');
+      }
+    } else {
+      isFormulaPhase = false;
+      document.getElementById('story-container').style.display = 'none';
+      formulaGroup.style.display = 'none';
+      labelAnswer.style.visibility = 'hidden';
+
+      mathProblemText.style.display = 'inline';
+      mathProblemText.textContent = `${currentProblem.num1} ${currentProblem.op} ${currentProblem.num2}`;
+
+      document.getElementById('answer-display').classList.add('active-field');
+    }
+
+    document.getElementById('answer-display').textContent = '';
+    const input = document.getElementById('answer-input');
+    input.value = '';
+    input.disabled = false;
+
+    setupInputModeUI();
+
+    const mode = document.getElementById('input-mode').value;
+    if (mode === 'keyboard') {
+      input.focus();
+    }
+
+    document.getElementById('next-actions').style.display = 'none';
+    document.getElementById('mark-correct').style.display = 'none';
+    document.getElementById('mark-wrong').style.display = 'none';
+  }
+
+  function checkAnswer() {
+    const mode = document.getElementById('input-mode').value;
+    const requireFormula = document.getElementById('story-require-formula').value === 'true';
+
+    if (isStoryMode && requireFormula && isFormulaPhase) {
+      let userFormula = (mode === 'keyboard') ? document.getElementById('answer-input').value : formulaValue;
+      userFormula = userFormula.replace(/\s+/g, '').replace('*', '×').replace('/', '÷');
+
+      let isFormulaCorrect = false;
+
+      if (currentProblem.op === '×') {
+        const reverseFormula = `${currentProblem.num2}×${currentProblem.num1}`;
+        if (userFormula === currentProblem.expectedFormula || userFormula === reverseFormula) {
+          isFormulaCorrect = true;
+        }
+      } else {
+        if (userFormula === currentProblem.expectedFormula) {
+          isFormulaCorrect = true;
+        }
+      }
+
+      if (isFormulaCorrect) {
+        playSound('correct');
+        isFormulaPhase = false;
+
+        document.getElementById('formula-display').classList.remove('active-field');
+        document.getElementById('answer-display').classList.add('active-field');
+
+        document.getElementById('answer-input').value = '';
+        keypadValue = '';
+        document.getElementById('answer-display').textContent = '';
+        setupInputModeUI();
+
+        if (mode === 'keyboard') {
+          document.getElementById('answer-input').focus();
+        }
+      } else {
+        showWrongMark();
+      }
+      return;
+    }
+
+    let userAnswer;
+    if (mode === 'keyboard') {
+      userAnswer = parseInt(document.getElementById('answer-input').value);
+    } else {
+      userAnswer = parseInt(keypadValue);
+    }
+
+    if (isNaN(userAnswer)) return;
+
+    if (userAnswer === currentProblem.answer) {
+      playSound('correct');
+      document.getElementById('mark-correct').style.display = 'block';
+
+      if (isTimeAttack) {
+        score++;
+        document.getElementById('score-count').textContent = score;
+        setTimeout(() => {
+          nextProblem();
+        }, 400);
+      } else {
+        document.getElementById('check-btn').style.display = 'none';
+        document.getElementById('next-actions').style.display = 'block';
+        document.getElementById('answer-input').disabled = true;
+      }
+    } else {
+      showWrongMark();
+    }
+  }
+
+  function showWrongMark() {
+    playSound('wrong');
+    const markWrong = document.getElementById('mark-wrong');
+    markWrong.style.display = 'block';
+    setTimeout(() => { markWrong.style.display = 'none'; }, 800);
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (currentScreenId !== 'game-screen') return;
+    const mode = document.getElementById('input-mode').value;
+    const nextActions = document.getElementById('next-actions');
+
+    if (nextActions.style.display !== 'none') {
+      if (e.key === 'Enter') nextProblem();
+      return;
+    }
+
+    if (mode !== 'keyboard') {
+      if (e.key >= '0' && e.key <= '9') pressKeypad(e.key);
+      else if (['+', '-', '*', '/'].includes(e.key)) {
+        let opMap = { '+': '+', '-': '-', '*': '×', '/': '÷' };
+        pressKeypad(opMap[e.key]);
+      }
+      else if (e.key === 'Backspace' || e.key === 'Delete') pressKeypad('C');
+      else if (e.key === 'Enter') pressKeypad('ENTER');
+    } else {
+      if (e.key === 'Enter') checkAnswer();
+    }
+  });
+
+  let audioCtx = null;
+  function playSound(type) {
+    if (!document.getElementById('sound-enable').checked) return;
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    const now = audioCtx.currentTime;
+    if (type === 'correct') {
+      const osc1 = audioCtx.createOscillator(), osc2 = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc1.frequency.setValueAtTime(659.25, now);
+      osc2.frequency.setValueAtTime(830.61, now + 0.15);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+      osc1.connect(gain); osc2.connect(gain); gain.connect(audioCtx.destination);
+      osc1.start(now); osc1.stop(now + 0.15);
+      osc2.start(now + 0.15); osc2.stop(now + 0.8);
+    } else if (type === 'wrong') {
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, now);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(now); osc.stop(now + 0.4);
+    }
+  }
+
+  validateAndValidateConfig();
+  applySettings();
+</script>
+</body>
+</html>

@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>サイコロ計算バトル - Dynamic Rich Edition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=M+PLUS+Rounded+1c:wght@700;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-main: #0c0a1a;
+    --panel-bg: rgba(28, 21, 53, 0.85);
+    --panel-border: #563d82;
+    --accent-gold: #ffd242;
+    --accent-gold-glow: rgba(255, 210, 66, 0.5);
+    --accent-teal: #00f2fe;
+    --accent-teal-glow: rgba(0, 242, 254, 0.5);
+    --hp-enemy: #ff3366;
+    --hp-player: #00e676;
+    --text-main: #ffffff;
+    --text-sub: #a395c9;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; min-height: 100vh; overflow-x: hidden; }
+
+  body {
+    background: radial-gradient(circle at 50% 20%, #201335 0%, #0c0a1a 80%);
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    color: var(--text-main);
+    display: flex;
+    justify-content: center;
+    padding: 12px 10px 30px;
+    position: relative;
+  }
+
+  /* 背景に動くスターパーティクル風の光 */
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 20% 80%, rgba(0,242,254,0.08) 0%, transparent 40%),
+                radial-gradient(circle at 80% 20%, rgba(255,51,102,0.08) 0%, transparent 40%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  rt { font-size: 0.55em; color: var(--accent-gold); font-weight: normal; }
+  .app { width: 100%; max-width: 440px; position: relative; z-index: 1; }
+  .hidden { display: none !important; }
+
+  /* 画面全体の振動用クラス */
+  .screen-shake {
+    animation: screenShake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+  }
+  @keyframes screenShake {
+    10%, 90% { transform: translate3d(-3px, -2px, 0); }
+    20%, 80% { transform: translate3d(5px, 4px, 0); }
+    30%, 50%, 70% { transform: translate3d(-6px, -5px, 0); }
+    40%, 60% { transform: translate3d(6px, 5px, 0); }
+  }
+
+  /* ヘッダー固定コントロール */
+  .top-controls {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+    display: flex;
+    gap: 8px;
+  }
+
+  .ctrl-btn {
+    background: var(--panel-bg);
+    border: 2px solid var(--accent-gold);
+    color: var(--accent-gold);
+    font-family: 'Fredoka', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 0 10px var(--accent-gold-glow);
+    transition: all 0.2s;
+    backdrop-filter: blur(8px);
+  }
+  .ctrl-btn:hover { transform: scale(1.08); }
+
+  /* 歯車ドロップダウン */
+  .settings-wrapper { position: relative; }
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: rgba(18, 12, 35, 0.95);
+    border: 2px solid var(--panel-border);
+    border-radius: 16px;
+    padding: 14px;
+    width: 210px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.8), 0 0 15px rgba(86,61,130,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 101;
+    backdrop-filter: blur(10px);
+    animation: fadeIn 0.2s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .dropdown-title { font-size: 12px; color: var(--text-sub); border-bottom: 1px solid var(--panel-border); padding-bottom: 4px; font-weight: 800; }
+  .sub-option-label {
+    font-size: 12px;
+    color: var(--text-main);
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.05);
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+
+  /* Title screen */
+  .title-screen { text-align: center; padding-top: 20px; }
+  .title-logo {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-weight: 900;
+    font-size: 34px;
+    background: linear-gradient(180deg, #ffffff 30%, var(--accent-gold) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.8));
+    margin: 8px 0 2px;
+    letter-spacing: 1px;
+  }
+  .title-dice {
+    font-size: 52px;
+    filter: drop-shadow(0 0 15px var(--accent-gold-glow));
+    animation: floatDice 3s ease-in-out infinite;
+  }
+  @keyframes floatDice {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(10deg); }
+  }
+  .title-sub { color: var(--text-sub); font-size: 13px; font-weight: 700; margin: 0 0 20px; }
+
+  .field-block { text-align: left; margin-bottom: 16px; }
+  .field-label { font-size: 13px; color: var(--text-sub); font-weight: 800; margin-bottom: 6px; display: block; }
+
+  #nameInput {
+    width: 100%;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 800;
+    padding: 12px 16px;
+    border-radius: 14px;
+    border: 2px solid var(--panel-border);
+    background: rgba(0,0,0,0.4);
+    color: var(--text-main);
+    outline: none;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
+    transition: border-color 0.2s;
+  }
+  #nameInput:focus { border-color: var(--accent-teal); box-shadow: 0 0 10px var(--accent-teal-glow); }
+
+  .stage-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+  .stage-tab {
+    flex: 1;
+    padding: 10px 4px;
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: 12px;
+    color: var(--text-sub);
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .stage-tab.selected {
+    background: linear-gradient(180deg, #322350, #1f1435);
+    border-color: var(--accent-gold);
+    color: var(--accent-gold);
+    box-shadow: 0 0 12px var(--accent-gold-glow);
+  }
+
+  .diff-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 20px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .diff-btn {
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 12px 8px;
+    color: var(--text-main);
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s ease;
+  }
+  .diff-btn .diff-title { font-size: 13px; font-weight: 800; display: block; }
+  .diff-btn .diff-desc {
+    display: block;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--text-sub);
+    margin-top: 4px;
+  }
+  .diff-btn.selected {
+    border-color: var(--accent-teal);
+    background: linear-gradient(180deg, rgba(0,242,254,0.2), var(--panel-bg));
+    box-shadow: 0 0 12px var(--accent-teal-glow);
+  }
+  .diff-btn.selected .diff-title { color: var(--accent-teal); }
+
+  .btn-roll {
+    font-family: inherit;
+    font-weight: 900;
+    border: none;
+    cursor: pointer;
+    border-radius: 16px;
+    transition: transform 0.1s ease, filter 0.15s ease, box-shadow 0.2s;
+    background: linear-gradient(180deg, #ffe57f 0%, var(--accent-gold) 100%);
+    color: #2b1d00;
+    font-size: 18px;
+    padding: 14px 36px;
+    box-shadow: 0 6px 0 #b38600, 0 8px 15px rgba(0,0,0,0.5);
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+  }
+  .btn-roll:active { transform: translateY(4px); box-shadow: 0 2px 0 #b38600, 0 4px 8px rgba(0,0,0,0.5); }
+  .btn-roll:hover { filter: brightness(1.1); }
+  .btn-roll:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+  .btn-start-wrap { text-align: center; }
+
+  /* Game screen */
+  header { text-align: center; margin-bottom: 12px; position: relative; }
+  header h1 {
+    font-size: 20px;
+    font-weight: 900;
+    margin: 0;
+    color: var(--accent-gold);
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  }
+  header p { margin: 2px 0 0; font-size: 12px; color: var(--text-sub); font-weight: 700; }
+  .stats-row {
+    display: flex; justify-content: center; gap: 16px; margin-top: 6px;
+    font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-sub);
+  }
+  .stats-row span b { color: var(--accent-teal); font-size: 14px; }
+  .back-title-btn {
+    position: absolute; top: 0; left: 0;
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    color: var(--text-sub); font-family: inherit; font-size: 11px; font-weight: 700;
+    padding: 6px 10px; border-radius: 10px; cursor: pointer;
+  }
+
+  /* バトルカード（敵＆味方） */
+  .card {
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: 20px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    position: relative;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+    backdrop-filter: blur(8px);
+  }
+
+  .fighter-row { display: flex; align-items: center; gap: 14px; }
+  
+  /* 敵・プレイヤーのスプライトアイコン風仕上げ */
+  .fighter-emoji {
+    font-size: 38px;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, rgba(86,61,130,0.6) 0%, rgba(0,0,0,0.4) 100%);
+    border: 2px solid var(--panel-border);
+    border-radius: 16px;
+    flex-shrink: 0;
+    position: relative;
+    box-shadow: inset 0 0 10px rgba(255,255,255,0.1);
+  }
+  /* ボス時の輝きエフェクト */
+  .fighter-emoji.boss-glow::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 18px;
+    border: 2px solid var(--hp-enemy);
+    box-shadow: 0 0 12px var(--hp-enemy);
+    animation: bossPulse 1.2s infinite alternate;
+  }
+  @keyframes bossPulse { from { opacity: 0.3; } to { opacity: 1; } }
+
+  .fighter-info { flex: 1; min-width: 0; }
+  .fighter-name {
+    font-weight: 800; font-size: 15px;
+    display: flex; justify-content: space-between; margin-bottom: 6px; gap: 6px;
+  }
+  .fighter-name .hp-num { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-sub); }
+  
+  /* HPゲージ */
+  .hp-bar-track {
+    height: 14px;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.6);
+    padding: 2px;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.8);
+  }
+  .hp-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.5s cubic-bezier(0.2, 0.9, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+  }
+  .hp-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 50%;
+    background: rgba(255,255,255,0.3);
+  }
+  .hp-bar-fill.enemy { background: linear-gradient(90deg, #ff6b8b, var(--hp-enemy)); box-shadow: 0 0 10px rgba(255,51,102,0.5); }
+  .hp-bar-fill.player { background: linear-gradient(90deg, #69f0ae, var(--hp-player)); box-shadow: 0 0 10px rgba(0,230,118,0.5); }
+
+  /* ダメージ数値（浮き出るPOP演出） */
+  .float-dmg {
+    position: absolute;
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 900;
+    font-size: 32px;
+    pointer-events: none;
+    right: 20px;
+    top: 0px;
+    animation: floatUpPop 0.9s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+    text-shadow: 0 4px 8px rgba(0,0,0,0.9), 0 0 10px rgba(255,255,255,0.8);
+    z-index: 10;
+  }
+  .float-dmg.enemy-dmg { color: var(--hp-enemy); }
+  .float-dmg.player-dmg { color: var(--accent-gold); }
+  @keyframes floatUpPop {
+    0% { opacity: 0; transform: translateY(15px) scale(0.5) rotate(-10deg); }
+    20% { opacity: 1; transform: translateY(-10px) scale(1.3) rotate(5deg); }
+    100% { opacity: 0; transform: translateY(-40px) scale(1) rotate(0deg); }
+  }
+
+  .vs-divider { text-align: center; font-family: 'Fredoka', sans-serif; color: var(--accent-gold); font-size: 12px; letter-spacing: 4px; margin: -2px 0 4px; opacity: 0.8; }
+
+  /* メインステージ（サイコロ・入力エリア） */
+  .stage {
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: 20px;
+    padding: 16px 14px;
+    margin-bottom: 8px;
+    text-align: center;
+    min-height: 170px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+    backdrop-filter: blur(8px);
+  }
+
+  .dice-row { display: flex; gap: 12px; justify-content: center; min-height: 64px; align-items: center; flex-wrap: wrap; }
+
+  /* サイコロのリッチデザイン */
+  .die {
+    width: 58px;
+    height: 58px;
+    background: linear-gradient(145deg, #ffffff, #e6dace);
+    border-radius: 14px;
+    box-shadow: 0 6px 0 #b5a391, 0 8px 15px rgba(0,0,0,0.4);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    padding: 6px;
+    box-sizing: border-box;
+    transition: transform 0.1s;
+  }
+  .die.rolling { animation: dice3DRoll 0.35s linear infinite; }
+  @keyframes dice3DRoll {
+    0% { transform: rotateX(0deg) rotateY(0deg) scale(0.95); }
+    50% { transform: rotateX(180deg) rotateY(90deg) scale(1.05); }
+    100% { transform: rotateX(360deg) rotateY(180deg) scale(0.95); }
+  }
+
+  .dot {
+    background-color: #231c2e;
+    border-radius: 50%;
+    margin: auto;
+    width: 9px;
+    height: 9px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.6);
+  }
+  .die[data-value="1"] .dot {
+    background-color: #ff3366;
+    width: 16px;
+    height: 16px;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+  }
+
+  .question-box { width: 100%; }
+  .question-text { font-size: 16px; font-weight: 800; margin-bottom: 10px; color: var(--text-main); text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+
+  /* 数式入力スロット */
+  .formula-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    margin: 0 auto 12px;
+    flex-wrap: wrap;
+  }
+  .input-slot {
+    min-width: 42px;
+    height: 44px;
+    background: rgba(0,0,0,0.5);
+    border: 2px solid var(--panel-border);
+    border-radius: 10px;
+    color: var(--accent-teal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    font-weight: 700;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.8);
+    transition: all 0.15s;
+  }
+  .input-slot.active {
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 12px var(--accent-gold-glow), inset 0 2px 5px rgba(0,0,0,0.8);
+    background: rgba(255,210,66,0.1);
+  }
+
+  /* テンキーボタン */
+  .keypad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    max-width: 270px;
+    margin: 0 auto;
+  }
+  .key-btn {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 18px;
+    font-weight: 900;
+    padding: 10px 0;
+    background: linear-gradient(180deg, #322550, #201638);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    color: var(--text-main);
+    cursor: pointer;
+    box-shadow: 0 4px 0 #120b24, 0 4px 10px rgba(0,0,0,0.3);
+    transition: all 0.08s ease;
+  }
+  .key-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #120b24; }
+  .key-btn.action-btn { background: linear-gradient(180deg, #4a3575, #312152); color: var(--accent-gold); }
+  .key-btn.submit-btn {
+    background: linear-gradient(180deg, #00f2fe, #00b4d8);
+    color: #002b36;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+    box-shadow: 0 4px 0 #007791;
+  }
+  
+  .key-btn.ans-hint-btn {
+    background: linear-gradient(180deg, #ff6b8b, #ff3366);
+    color: #fff;
+    font-size: 11px;
+    padding: 6px 2px;
+    line-height: 1.2;
+    box-shadow: 0 4px 0 #990026;
+  }
+  .key-btn.ans-hint-btn.revealed {
+    background: linear-gradient(180deg, #ffe57f, var(--accent-gold));
+    color: #2b1d00;
+    font-size: 12px;
+    cursor: default;
+    box-shadow: none;
+  }
+
+  .feedback { font-size: 14px; font-weight: 800; min-height: 20px; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+  .feedback.correct { color: var(--hp-player); }
+  .feedback.wrong { color: var(--hp-enemy); }
+  .feedback.info { color: var(--text-sub); }
+
+  .log {
+    font-family: 'Space Mono', monospace; font-size: 11px; color: var(--text-sub);
+    background: rgba(0,0,0,0.4); border-radius: 12px; padding: 8px 12px;
+    max-height: 55px; overflow-y: auto; line-height: 1.5; border: 1px solid rgba(255,255,255,0.05);
+  }
+
+  /* オーバーレイ（リザルト等） */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(5,3,12,0.85);
+    display: flex; align-items: center; justify-content: center; z-index: 120; padding: 20px;
+    backdrop-filter: blur(8px);
+  }
+  .overlay-card {
+    background: linear-gradient(180deg, #251a42, #130d24);
+    border: 2px solid var(--accent-gold);
+    border-radius: 24px;
+    padding: 30px 24px;
+    text-align: center;
+    max-width: 320px;
+    box-shadow: 0 0 30px var(--accent-gold-glow);
+    animation: popIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  }
+  @keyframes popIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+  .overlay-card h2 { font-size: 26px; font-weight: 900; margin: 0 0 12px; }
+  .overlay-card.win h2 { color: var(--accent-gold); text-shadow: 0 0 10px var(--accent-gold-glow); }
+  .overlay-card.clear h2 { color: var(--accent-teal); text-shadow: 0 0 10px var(--accent-teal-glow); }
+  .overlay-card.lose h2 { color: var(--hp-enemy); }
+  .overlay-card p { color: var(--text-sub); font-size: 14px; margin-bottom: 22px; font-weight: 700; }
+</style>
+</head>
+<body id="bodyTag">
+
+<!-- 固定ヘッダー（歯車・サウンドボタン） -->
+<div class="top-controls">
+  <div class="settings-wrapper">
+    <button class="ctrl-btn" id="gearBtn">⚙️ <ruby>設定<rt>せってい</rt></ruby></button>
+    <div class="dropdown-menu hidden" id="dropdownMenu">
+      <div class="dropdown-title"><ruby>立式<rt>りっしき</rt></ruby>・オプション</div>
+      <label class="sub-option-label">
+        <input type="checkbox" id="skipSubCheckbox"> <ruby>引き算<rt>ひきざん</rt></ruby>なし
+      </label>
+      <label class="sub-option-label">
+        <input type="checkbox" id="makeAddFormulaCheckbox"> <ruby>足し算<rt>たしざん</rt></ruby>の<ruby>立式<rt>りっしき</rt></ruby>
+      </label>
+      <label class="sub-option-label">
+        <input type="checkbox" id="makeSubFormulaCheckbox"> <ruby>引き算<rt>ひきざん</rt></ruby>の<ruby>立式<rt>りっしき</rt></ruby>
+      </label>
+    </div>
+  </div>
+
+  <button class="ctrl-btn" id="soundToggleBtn">🎵 ON</button>
+</div>
+
+<div class="app">
+
+  <!-- Title screen -->
+  <div class="title-screen" id="titleScreen">
+    <div class="title-dice">🎲</div>
+    <div class="title-logo">サイコロ<ruby>計算<rt>けいさん</rt></ruby>バトル</div>
+    <p class="title-sub"><ruby>計算<rt>けいさん</rt></ruby>して <ruby>敵<rt>てき</rt></ruby>をたおそう！</p>
+
+    <div class="field-block">
+      <label class="field-label"><ruby>勇者<rt>ゆうしゃ</rt></ruby>の なまえ</label>
+      <input type="text" id="nameInput" maxlength="10" placeholder="ゆうしゃ">
+    </div>
+
+    <div class="field-block">
+      <label class="field-label">ステージをえらぼう</label>
+      <div class="stage-tabs">
+        <button class="stage-tab selected" data-stage="1">ステージ1<br>(1~6の<ruby>目<rt>め</rt></ruby>)</button>
+        <button class="stage-tab" data-stage="2">ステージ2<br>(4~9の<ruby>目<rt>め</rt></ruby>)</button>
+        <button class="stage-tab" data-stage="3">ステージ3<br>(かけざん)</button>
+      </div>
+
+      <div class="diff-grid" id="diffGrid"></div>
+    </div>
+
+    <div class="btn-start-wrap">
+      <button class="btn-roll" id="startBtn">⚔️ ぼうけんに<ruby>出<rt>で</rt></ruby>る</button>
+    </div>
+  </div>
+
+  <!-- Game screen -->
+  <div id="gameScreen" class="hidden">
+    <header>
+      <button class="back-title-btn" id="backTitleBtn">← タイトル</button>
+      <h1>サイコロ<ruby>計算<rt>けいさん</rt></ruby>バトル</h1>
+      <p id="diffLabelDisp"><ruby>難易度<rt>なんいど</rt></ruby>: かんたん</p>
+      <div class="stats-row">
+        <span><ruby>連続正解<rt>れんぞくせいかい</rt></ruby>: <b id="streak">0</b></span>
+        <span>てき: <b id="waveDisp">1</b>/<span id="waveTotal">3</span></span>
+      </div>
+    </header>
+
+    <div class="card" id="enemyCard">
+      <div class="fighter-row">
+        <div class="fighter-emoji" id="enemyEmoji">👾</div>
+        <div class="fighter-info">
+          <div class="fighter-name">
+            <span class="fname-text" id="enemyName">スライム</span>
+            <span class="hp-num"><span id="enemyHpNum">60</span>/<span id="enemyMaxHpNum">60</span></span>
+          </div>
+          <div class="hp-bar-track"><div class="hp-bar-fill enemy" id="enemyHpBar" style="width:100%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="vs-divider">VS</div>
+
+    <div class="stage">
+      <div class="dice-row" id="diceRow"></div>
+      <button class="btn-roll" id="rollBtn">🎲 サイコロを<ruby>振<rt>ふ</rt></ruby>る</button>
+      <div class="question-box hidden" id="questionBox">
+        <div class="question-text" id="questionText"></div>
+        <div class="formula-display" id="formulaDisplay"></div>
+        <div class="keypad-grid">
+          <button class="key-btn" onclick="appendKey('7')">7</button>
+          <button class="key-btn" onclick="appendKey('8')">8</button>
+          <button class="key-btn" onclick="appendKey('9')">9</button>
+          <button class="key-btn" onclick="appendKey('4')">4</button>
+          <button class="key-btn" onclick="appendKey('5')">5</button>
+          <button class="key-btn" onclick="appendKey('6')">6</button>
+          <button class="key-btn" onclick="appendKey('1')">1</button>
+          <button class="key-btn" onclick="appendKey('2')">2</button>
+          <button class="key-btn" onclick="appendKey('3')">3</button>
+          <button class="key-btn" onclick="appendKey('0')">0</button>
+          <button class="key-btn action-btn" onclick="clearKey()"><ruby>消<rt>け</rt></ruby>す</button>
+          <button class="key-btn submit-btn" onclick="submitAnswer()"><ruby>答<rt>こた</rt></ruby>える</button>
+          <button class="key-btn ans-hint-btn hidden" id="ansHintBtn" onclick="useHintAnswer()"><ruby>答<rt>こた</rt></ruby>えをみる<br>(5ダメージ)</button>
+        </div>
+      </div>
+      <div class="feedback info" id="feedback"></div>
+    </div>
+
+    <div class="card" id="playerCard">
+      <div class="fighter-row">
+        <div class="fighter-emoji" id="playerEmoji">🧙</div>
+        <div class="fighter-info">
+          <div class="fighter-name">
+            <span class="fname-text" id="playerNameDisp">ゆうしゃ</span>
+            <span class="hp-num"><span id="playerHpNum">100</span>/<span id="playerMaxHpNum">100</span></span>
+          </div>
+          <div class="hp-bar-track"><div class="hp-bar-fill player" id="playerHpBar" style="width:100%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="overlay">
+  <div class="overlay-card" id="overlayCard">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayMsg"></p>
+    <button class="btn-roll" id="overlayBtn"><ruby>次<rt>つぎ</rt></ruby>へ</button>
+  </div>
+</div>
+
+<script>
+/* サウンドシステム */
+class SoundSystem {
+  constructor() {
+    this.ctx = null;
+    this.enabled = true;
+    this.currentBgm = null;
+    this.bgmTimer = null;
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  toggleSound() {
+    this.enabled = !this.enabled;
+    if (!this.enabled) {
+      this.stopBgm();
+    } else {
+      if (this.currentBgm) this.playBgm(this.currentBgm);
+    }
+    return this.enabled;
+  }
+
+  playSE(type) {
+    if (!this.enabled) return;
+    this.init();
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    if (type === 'select') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, t);
+      osc.frequency.exponentialRampToValueAtTime(800, t + 0.05);
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.linearRampToValueAtTime(0.01, t + 0.05);
+      osc.start(t);
+      osc.stop(t + 0.05);
+    } else if (type === 'roll') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(300, t);
+      osc.frequency.linearRampToValueAtTime(150, t + 0.08);
+      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.linearRampToValueAtTime(0.01, t + 0.08);
+      osc.start(t);
+      osc.stop(t + 0.08);
+    } else if (type === 'correct') {
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, i) => {
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(freq, t + i * 0.08);
+        g.gain.setValueAtTime(0.2, t + i * 0.08);
+        g.gain.exponentialRampToValueAtTime(0.01, t + i * 0.08 + 0.15);
+        o.connect(g);
+        g.connect(this.ctx.destination);
+        o.start(t + i * 0.08);
+        o.stop(t + i * 0.08 + 0.15);
+      });
+    } else if (type === 'wrong') {
+      const o1 = this.ctx.createOscillator();
+      const g1 = this.ctx.createGain();
+      o1.type = 'sawtooth';
+      o1.frequency.setValueAtTime(150, t);
+      g1.gain.setValueAtTime(0.25, t);
+      g1.gain.linearRampToValueAtTime(0.01, t + 0.18);
+      o1.connect(g1);
+      g1.connect(this.ctx.destination);
+      o1.start(t);
+      o1.stop(t + 0.18);
+
+      const o2 = this.ctx.createOscillator();
+      const g2 = this.ctx.createGain();
+      o2.type = 'sawtooth';
+      o2.frequency.setValueAtTime(120, t + 0.2);
+      g2.gain.setValueAtTime(0.25, t + 0.2);
+      g2.gain.linearRampToValueAtTime(0.01, t + 0.4);
+      o2.connect(g2);
+      g2.connect(this.ctx.destination);
+      o2.start(t + 0.2);
+      o2.stop(t + 0.4);
+    } else if (type === 'player_attack') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(150, t);
+      osc.frequency.exponentialRampToValueAtTime(600, t + 0.15);
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
+      osc.start(t);
+      osc.stop(t + 0.15);
+    } else if (type === 'enemy_attack') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(200, t);
+      osc.frequency.exponentialRampToValueAtTime(60, t + 0.2);
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.linearRampToValueAtTime(0.01, t + 0.2);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    } else if (type === 'enemy_defeat') {
+      const freqs = [300, 250, 200, 150];
+      freqs.forEach((f, i) => {
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = 'sawtooth';
+        o.frequency.setValueAtTime(f, t + i * 0.06);
+        g.gain.setValueAtTime(0.25, t + i * 0.06);
+        g.gain.linearRampToValueAtTime(0.01, t + i * 0.06 + 0.1);
+        o.connect(g);
+        g.connect(this.ctx.destination);
+        o.start(t + i * 0.06);
+        o.stop(t + i * 0.06 + 0.1);
+      });
+    } else if (type === 'boss_defeat') {
+      const freqs = [400, 500, 600, 800, 1000];
+      freqs.forEach((f, i) => {
+        const o = this.ctx.createOscillator();
+        const g = this.ctx.createGain();
+        o.type = 'triangle';
+        o.frequency.setValueAtTime(f, t + i * 0.1);
+        g.gain.setValueAtTime(0.3, t + i * 0.1);
+        g.gain.exponentialRampToValueAtTime(0.01, t + i * 0.1 + 0.3);
+        o.connect(g);
+        g.connect(this.ctx.destination);
+        o.start(t + i * 0.1);
+        o.stop(t + i * 0.1 + 0.3);
+      });
+    }
+  }
+
+  playBgm(type) {
+    this.currentBgm = type;
+    if (!this.enabled) return;
+    this.init();
+    this.stopBgm();
+
+    let seq = [];
+    let tempo = 200;
+
+    if (type === 'home') {
+      seq = [261, 329, 392, 329, 261, 329, 392, 523];
+      tempo = 250;
+    } else if (type === 'battle') {
+      seq = [150, 180, 150, 200, 150, 180, 220, 200];
+      tempo = 180;
+    } else if (type === 'boss') {
+      seq = [110, 110, 130, 110, 150, 140, 130, 120];
+      tempo = 150;
+    }
+
+    let idx = 0;
+    const playNext = () => {
+      if (!this.enabled || this.currentBgm !== type) return;
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = (type === 'boss') ? 'sawtooth' : 'triangle';
+      osc.frequency.setValueAtTime(seq[idx], t);
+      gain.gain.setValueAtTime(0.05, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + (tempo/1000) * 0.9);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + (tempo/1000) * 0.9);
+
+      idx = (idx + 1) % seq.length;
+      this.bgmTimer = setTimeout(playNext, tempo);
+    };
+
+    playNext();
+  }
+
+  stopBgm() {
+    if (this.bgmTimer) {
+      clearTimeout(this.bgmTimer);
+      this.bgmTimer = null;
+    }
+  }
+}
+
+const sounds = new SoundSystem();
+
+/* ゲーム本体ロジック */
+(function(){
+  const ENEMY_SETS = [
+    [{name:"スライム",emoji:"🟢"},{name:"コウモリ",emoji:"🦇"},{name:"ゴブリン",emoji:"👺"}],
+    [{name:"オオカミ",emoji:"🐺"},{name:"マミー",emoji:"🧟"},{name:"オーガ",emoji:"👹"}],
+    [{name:"ゴーレム",emoji:"🗿"},{name:"あんこくきし",emoji:"🛡️"},{name:"ワイバーン",emoji:"🦖"}],
+    [{name:"デーモン",emoji:"😈"},{name:"リッチ",emoji:"💀"},{name:"ドラゴン",emoji:"🐉"}],
+  ];
+
+  const DOT_POSITIONS = {
+    1: [4],
+    2: [0, 8],
+    3: [0, 4, 8],
+    4: [0, 2, 6, 8],
+    5: [0, 2, 4, 6, 8],
+    6: [0, 2, 3, 5, 6, 8],
+    7: [0, 2, 3, 4, 5, 6, 8],
+    8: [0, 1, 2, 3, 5, 6, 7, 8],
+    9: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+  };
+
+  let currentStage = 1;
+  let currentLv = 1;
+  let skipSubtraction = false;
+  let makeAddFormula = false;
+  let makeSubFormula = false;
+  let diceCount = 2;
+  let hpList = [10,20,30];
+  let enemyIndex = 0;
+  let playerName = "ゆうしゃ";
+  let streak = 0;
+  let player = {hp:100, maxHp:100};
+  let enemy = null;
+  let phase = "idle";
+  let currentDice = [];
+  let currentDamage = 0;
+  let currentEnemyHpBefore = 0;
+  let currentEnemyDmg = 0;
+  let isHintRevealed = false;
+
+  let inputSlots = [];
+  let activeSlotIndex = 0;
+
+  const el = id => document.getElementById(id);
+
+  /* 音声切り替え */
+  el("soundToggleBtn").addEventListener("click", () => {
+    const isOn = sounds.toggleSound();
+    el("soundToggleBtn").innerHTML = isOn ? "🎵 ON" : "🔇 OFF";
+  });
+
+  /* 歯車ドロップダウンメニュー */
+  el("gearBtn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    sounds.playSE("select");
+    el("dropdownMenu").classList.toggle("hidden");
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!el("dropdownMenu").classList.contains("hidden")) {
+      el("dropdownMenu").classList.add("hidden");
+    }
+  });
+
+  el("dropdownMenu").addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+
+  function log(msg){
+    const box = el("log");
+    const line = document.createElement("div");
+    line.textContent = msg;
+    box.appendChild(line);
+    box.scrollTop = box.scrollHeight;
+    while(box.children.length > 5){ box.removeChild(box.firstChild); }
+  }
+
+  /* 画面揺れ演出の追加 */
+  function triggerScreenShake() {
+    const body = el("bodyTag");
+    body.classList.remove("screen-shake");
+    void body.offsetWidth;
+    body.classList.add("screen-shake");
+  }
+
+  function showFloatDamage(cardId, text, isPlayer){
+    const card = el(cardId);
+    const d = document.createElement("div");
+    d.className = "float-dmg " + (isPlayer ? "player-dmg" : "enemy-dmg");
+    d.textContent = text;
+    card.appendChild(d);
+    setTimeout(()=>d.remove(), 900);
+  }
+
+  function setFeedback(text, cls){
+    const f = el("feedback");
+    f.innerHTML = text;
+    f.className = "feedback " + (cls || "info");
+  }
+
+  function renderHp(){
+    el("enemyHpNum").textContent = Math.max(0, enemy.hp);
+    el("enemyMaxHpNum").textContent = enemy.maxHp;
+    el("enemyHpBar").style.width = Math.max(0,(enemy.hp/enemy.maxHp*100)) + "%";
+    el("playerHpNum").textContent = Math.max(0, player.hp);
+    el("playerMaxHpNum").textContent = player.maxHp;
+    el("playerHpBar").style.width = Math.max(0,(player.hp/player.maxHp*100)) + "%";
+  }
+
+  function renderDice(faces, rollingClass){
+    const row = el("diceRow");
+    row.innerHTML = "";
+    faces.forEach(val => {
+      const die = document.createElement("div");
+      die.className = "die " + (rollingClass||"");
+      die.dataset.value = val;
+
+      const dots = DOT_POSITIONS[val] || [];
+      for (let i = 0; i < 9; i++) {
+        const cell = document.createElement("div");
+        if (dots.includes(i)) {
+          const dot = document.createElement("div");
+          dot.className = "dot";
+          cell.appendChild(dot);
+        }
+        die.appendChild(cell);
+      }
+      row.appendChild(die);
+    });
+  }
+
+  function renderDifficultyButtons() {
+    const grid = el("diffGrid");
+    grid.innerHTML = "";
+
+    if (currentStage === 1) {
+      const diffs = [
+        {lv:1, title:"Lv.1 かんたん", desc:"目:1~3 / HP:10,20,30"},
+        {lv:2, title:"Lv.2 ふつう", desc:"目:1~6 / HP:20,30,40"},
+        {lv:3, title:"Lv.3 むずかしい", desc:"目:1~6(3個) / HP:30,40,50"},
+        {lv:4, title:"Lv.4 とてもむずかしい", desc:"目:1~6(4個) / HP:40,50,60"}
+      ];
+      diffs.forEach(d => {
+        const btn = document.createElement("button");
+        btn.className = "diff-btn" + (d.lv === currentLv ? " selected" : "");
+        btn.dataset.lv = d.lv;
+        btn.innerHTML = `<span class="diff-title">${d.title}</span><span class="diff-desc">${d.desc}</span>`;
+        btn.onclick = () => selectLv(d.lv, btn);
+        grid.appendChild(btn);
+      });
+    } else if (currentStage === 2) {
+      const diffs = [
+        {lv:1, title:"Lv.1 かんたん", desc:"目:4~9 / HP:30,40,50"},
+        {lv:2, title:"Lv.2 ふつう", desc:"目:4~9 / HP:40,50,60"},
+        {lv:3, title:"Lv.3 むずかしい", desc:"目:4~9(3個) / HP:50,60,70"},
+        {lv:4, title:"Lv.4 とてもむずかしい", desc:"目:4~9(4個) / HP:60,70,80"}
+      ];
+      diffs.forEach(d => {
+        const btn = document.createElement("button");
+        btn.className = "diff-btn" + (d.lv === currentLv ? " selected" : "");
+        btn.dataset.lv = d.lv;
+        btn.innerHTML = `<span class="diff-title">${d.title}</span><span class="diff-desc">${d.desc}</span>`;
+        btn.onclick = () => selectLv(d.lv, btn);
+        grid.appendChild(btn);
+      });
+    } else if (currentStage === 3) {
+      for (let i = 1; i <= 10; i++) {
+        const btn = document.createElement("button");
+        btn.className = "diff-btn" + (i === currentLv ? " selected" : "");
+        btn.dataset.lv = i;
+        let desc = (i < 10) ? `左: ${i} × 右: 1~9` : `左右: 1~9`;
+        btn.innerHTML = `<span class="diff-title">Lv.${i}</span><span class="diff-desc">${desc}</span>`;
+        btn.onclick = () => selectLv(i, btn);
+        grid.appendChild(btn);
+      }
+    }
+  }
+
+  function selectLv(lv, btn) {
+    sounds.playSE("select");
+    currentLv = lv;
+    document.querySelectorAll(".diff-btn").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+  }
+
+  function initTitleScreen(){
+    document.querySelectorAll(".stage-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        sounds.playSE("select");
+        currentStage = Number(tab.dataset.stage);
+        currentLv = 1;
+        document.querySelectorAll(".stage-tab").forEach(t => t.classList.remove("selected"));
+        tab.classList.add("selected");
+        renderDifficultyButtons();
+      });
+    });
+    renderDifficultyButtons();
+    el("startBtn").addEventListener("click", startGame);
+    sounds.playBgm('home');
+  }
+
+  function updateOptionsFromUI() {
+    skipSubtraction = el("skipSubCheckbox").checked;
+    makeAddFormula = el("makeAddFormulaCheckbox").checked;
+    makeSubFormula = el("makeSubFormulaCheckbox").checked;
+  }
+
+  function startGame(){
+    sounds.playSE("select");
+    playerName = el("nameInput").value.trim() || "ゆうしゃ";
+    el("playerNameDisp").textContent = playerName;
+
+    updateOptionsFromUI();
+
+    if (currentStage === 1) {
+      diceCount = (currentLv >= 3) ? (currentLv === 3 ? 3 : 4) : 2;
+      const baseHps = [[10,20,30], [20,30,40], [30,40,50], [40,50,60]][currentLv-1];
+      hpList = baseHps;
+      el("diffLabelDisp").innerHTML = `<ruby>難易度<rt>なんいど</rt></ruby>: ステージ1 - Lv.${currentLv}`;
+    } else if (currentStage === 2) {
+      diceCount = (currentLv >= 3) ? (currentLv === 3 ? 3 : 4) : 2;
+      const baseHps = [[10,20,30], [20,30,40], [30,40,50], [40,50,60]][currentLv-1];
+      hpList = baseHps.map(h => h + 20);
+      el("diffLabelDisp").innerHTML = `<ruby>難易度<rt>なんいど</rt></ruby>: ステージ2 - Lv.${currentLv}`;
+    } else if (currentStage === 3) {
+      diceCount = 2;
+      if (currentLv < 10) {
+        hpList = [currentLv * 15, currentLv * 30, currentLv * 45];
+      } else {
+        hpList = [100, 150, 200];
+      }
+      el("diffLabelDisp").innerHTML = `<ruby>難易度<rt>なんいど</rt></ruby>: ステージ3 - Lv.${currentLv}`;
+    }
+
+    el("waveTotal").textContent = hpList.length;
+    enemyIndex = 0;
+    streak = 0;
+    player = {hp:100, maxHp:100};
+    el("streak").textContent = 0;
+    el("log").innerHTML = "";
+
+    el("titleScreen").classList.add("hidden");
+    el("gameScreen").classList.remove("hidden");
+
+    spawnEnemy();
+    resetToIdle();
+  }
+
+  function backToTitle(){
+    sounds.playSE("select");
+    el("overlay").classList.add("hidden");
+    el("gameScreen").classList.add("hidden");
+    el("titleScreen").classList.remove("hidden");
+    sounds.playBgm('home');
+  }
+
+  function spawnEnemy(){
+    const setIdx = Math.min(3, Math.floor((currentLv - 1) / 2.5));
+    const set = ENEMY_SETS[setIdx];
+    const type = set[enemyIndex % set.length];
+    const hp = hpList[enemyIndex];
+    const isBoss = enemyIndex === hpList.length - 1;
+
+    enemy = {name: type.name + (isBoss ? "(ボス)" : ""), emoji: type.emoji, hp: hp, maxHp: hp, isBoss: isBoss};
+    el("enemyName").textContent = enemy.name;
+    el("enemyEmoji").textContent = enemy.emoji;
+    
+    if (isBoss) {
+      el("enemyEmoji").classList.add("boss-glow");
+    } else {
+      el("enemyEmoji").classList.remove("boss-glow");
+    }
+
+    el("waveDisp").textContent = enemyIndex + 1;
+    renderHp();
+    log(`${enemy.name} があらわれた！`);
+
+    sounds.playBgm(isBoss ? 'boss' : 'battle');
+  }
+
+  function startRoll(){
+    if(phase !== "idle") return;
+    updateOptionsFromUI();
+
+    sounds.playSE("select");
+    phase = "rolling";
+    el("rollBtn").disabled = true;
+    el("questionBox").classList.add("hidden");
+    hideHintButton();
+    setFeedback("サイコロを<ruby>振<rt>ふ</rt></ruby>っています…", "info");
+
+    let ticks = 0;
+    const totalTicks = 8;
+    const rollInterval = setInterval(()=>{
+      sounds.playSE("roll");
+      const tempFaces = Array.from({length:diceCount}, ()=> 1 + Math.floor(Math.random()*6));
+      renderDice(tempFaces, "rolling");
+      ticks++;
+      if(ticks >= totalTicks){
+        clearInterval(rollInterval);
+        settleDice();
+      }
+    }, 80);
+  }
+
+  function getRandomFace() {
+    if (currentStage === 1) {
+      if (currentLv === 1) return 1 + Math.floor(Math.random()*3);
+      return 1 + Math.floor(Math.random()*6);
+    } else if (currentStage === 2) {
+      return 4 + Math.floor(Math.random()*6);
+    }
+    return 1;
+  }
+
+  function settleDice(){
+    if (currentStage === 3) {
+      if (currentLv < 10) {
+        currentDice = [currentLv, 1 + Math.floor(Math.random()*9)];
+      } else {
+        currentDice = [1 + Math.floor(Math.random()*9), 1 + Math.floor(Math.random()*9)];
+      }
+    } else {
+      currentDice = Array.from({length:diceCount}, () => getRandomFace());
+    }
+
+    renderDice(currentDice, "");
+
+    let answer = 0;
+    const op = (currentStage === 3) ? "×" : "+";
+
+    if (currentStage === 3) {
+      answer = currentDice[0] * currentDice[1];
+    } else {
+      answer = currentDice.reduce((a,b)=>a+b, 0);
+    }
+
+    currentDamage = answer;
+    phase = "awaitDamage";
+
+    inputSlots = [];
+    if (makeAddFormula) {
+      currentDice.forEach((val, idx) => {
+        inputSlots.push({ type: 'input', expect: val, val: '' });
+        if (idx < currentDice.length - 1) {
+          inputSlots.push({ type: 'text', val: ` ${op} ` });
+        }
+      });
+      inputSlots.push({ type: 'text', val: ' = ' });
+      inputSlots.push({ type: 'input', expect: answer, val: '' });
+      el("questionText").innerHTML = "<ruby>式<rt>しき</rt></ruby>とこたえを<ruby>入<rt>にゅう</rt></ruby><ruby>力<rt>りょく</rt></ruby>しよう！";
+    } else {
+      const expr = currentDice.join(` ${op} `);
+      inputSlots.push({ type: 'text', val: `${expr} = ` });
+      inputSlots.push({ type: 'input', expect: answer, val: '' });
+      el("questionText").innerHTML = "<ruby>出<rt>で</rt></ruby><ruby>目<rt>め</rt></ruby>を<ruby>計算<rt>けいさん</rt></ruby>して、こうげき<ruby>力<rt>りょく</rt></ruby>を<ruby>求<rt>もと</rt></ruby>めよう！";
+    }
+
+    el("questionBox").classList.remove("hidden");
+    el("questionBox").dataset.stage = "damage";
+    hideHintButton();
+
+    updateFormulaDisplay();
+    setFeedback("<ruby>入<rt>にゅう</rt></ruby><ruby>力<rt>りょく</rt></ruby>したら「こたえる」を<ruby>押<rt>お</rt></ruby>してね！", "info");
+  }
+
+  function updateFormulaDisplay() {
+    const disp = el("formulaDisplay");
+    disp.innerHTML = "";
+
+    let activeFound = false;
+    let inputIndices = [];
+
+    inputSlots.forEach((slot, i) => {
+      if (slot.type === 'input') {
+        inputIndices.push(i);
+        if (!activeFound && slot.val === '') {
+          activeSlotIndex = i;
+          activeFound = true;
+        }
+      }
+    });
+
+    if (!activeFound && inputIndices.length > 0) {
+      activeSlotIndex = inputIndices[inputIndices.length - 1];
+    }
+
+    inputSlots.forEach((slot, i) => {
+      if (slot.type === 'text') {
+        const span = document.createElement("span");
+        span.textContent = slot.val;
+        disp.appendChild(span);
+      } else if (slot.type === 'input') {
+        const div = document.createElement("div");
+        div.className = "input-slot" + (i === activeSlotIndex ? " active" : "");
+        div.textContent = slot.val !== '' ? slot.val : "?";
+        disp.appendChild(div);
+      }
+    });
+  }
+
+  window.appendKey = function(num) {
+    sounds.playSE("select");
+    const activeSlot = inputSlots[activeSlotIndex];
+    if (activeSlot && activeSlot.type === 'input') {
+      if (activeSlot.val.length < 3) {
+        activeSlot.val += num;
+        updateFormulaDisplay();
+      }
+    }
+  };
+
+  window.clearKey = function() {
+    sounds.playSE("select");
+    const activeSlot = inputSlots[activeSlotIndex];
+    if (activeSlot && activeSlot.type === 'input' && activeSlot.val !== '') {
+      activeSlot.val = activeSlot.val.slice(0, -1);
+    } else {
+      let prevInputIdx = -1;
+      for (let i = activeSlotIndex - 1; i >= 0; i--) {
+        if (inputSlots[i].type === 'input') {
+          prevInputIdx = i;
+          break;
+        }
+      }
+      if (prevInputIdx !== -1) {
+        inputSlots[prevInputIdx].val = inputSlots[prevInputIdx].val.slice(0, -1);
+      }
+    }
+    updateFormulaDisplay();
+  };
+
+  window.submitAnswer = function(){
+    let allCorrect = true;
+    let hasEmpty = false;
+
+    inputSlots.forEach(slot => {
+      if (slot.type === 'input') {
+        if (slot.val === '') hasEmpty = true;
+        if (Number(slot.val) !== slot.expect) allCorrect = false;
+      }
+    });
+
+    if (hasEmpty) {
+      setFeedback("まだ<ruby>数字<rt>すうじ</rt></ruby>が入っていないところがあるよ", "wrong");
+      return;
+    }
+
+    const stage = el("questionBox").dataset.stage;
+
+    if (allCorrect) {
+      sounds.playSE("correct");
+      streak++;
+      el("streak").textContent = streak;
+      hideHintButton();
+      if(stage === "damage") handleDamageCorrect();
+      else if(stage === "enemyHp") handleEnemyHpCorrect();
+      return;
+    }
+
+    sounds.playSE("wrong");
+    streak = 0;
+    el("streak").textContent = streak;
+
+    setFeedback("ちがうよ！ もう<ruby>一度<rt>いちど</rt></ruby>！", "wrong");
+
+    if (!isHintRevealed) {
+      const hintBtn = el("ansHintBtn");
+      hintBtn.className = "key-btn ans-hint-btn";
+      hintBtn.innerHTML = "<ruby>答<rt>こた</rt></ruby>えをみる<br>(5ダメージ)";
+      hintBtn.classList.remove("hidden");
+    }
+  };
+
+  window.useHintAnswer = function(){
+    if (isHintRevealed) return;
+
+    sounds.playSE("enemy_attack");
+    isHintRevealed = true;
+
+    const hintDmg = 5;
+    player.hp = Math.max(0, player.hp - hintDmg);
+    renderHp();
+    triggerScreenShake();
+    showFloatDamage("playerCard", "-"+hintDmg, false);
+    log(`こたえをかくにんして ${hintDmg} ダメージをうけた！`);
+
+    let fullFormulaStr = "";
+    inputSlots.forEach(slot => {
+      if (slot.type === 'text') fullFormulaStr += slot.val;
+      if (slot.type === 'input') fullFormulaStr += slot.expect;
+    });
+
+    const hintBtn = el("ansHintBtn");
+    hintBtn.className = "key-btn ans-hint-btn revealed";
+    hintBtn.innerHTML = `<ruby>答<rt>こた</rt></ruby>え:<br>${fullFormulaStr}`;
+
+    if (player.hp <= 0) {
+      setTimeout(onPlayerDefeated, 500);
+    }
+  };
+
+  function hideHintButton() {
+    isHintRevealed = false;
+    const hintBtn = el("ansHintBtn");
+    hintBtn.classList.add("hidden");
+    hintBtn.classList.remove("revealed");
+  }
+
+  function handleDamageCorrect(){
+    setFeedback("<ruby>正解<rt>せいかい</rt></ruby>！ こうげき ヒット！", "correct");
+    sounds.playSE("player_attack");
+
+    triggerScreenShake();
+    showFloatDamage("enemyCard", "-"+currentDamage, true);
+    log(`「${currentDamage}」のダメージを あたえた！`);
+
+    currentEnemyHpBefore = enemy.hp;
+    enemy.hp = Math.max(0, currentEnemyHpBefore - currentDamage);
+    renderHp();
+
+    if (enemy.hp <= 0 || skipSubtraction) {
+      el("questionBox").classList.add("hidden");
+      if (enemy.hp <= 0) {
+        setTimeout(() => {
+          onEnemyDefeated();
+        }, 500);
+      } else {
+        setTimeout(() => {
+          enemyAttack();
+        }, 800);
+      }
+    } else {
+      setTimeout(()=>{ askEnemyHpQuestion(); }, 600);
+    }
+  }
+
+  function askEnemyHpQuestion(){
+    phase = "awaitEnemyHp";
+    const answer = enemy.hp;
+
+    inputSlots = [];
+    if (makeSubFormula) {
+      inputSlots.push({ type: 'text', val: `${currentEnemyHpBefore} - ` });
+      inputSlots.push({ type: 'input', expect: currentDamage, val: '' });
+      inputSlots.push({ type: 'text', val: ' = ' });
+      inputSlots.push({ type: 'input', expect: answer, val: '' });
+      el("questionText").innerHTML = "<ruby>敵<rt>てき</rt></ruby>の<ruby>残<rt>のこ</rt></ruby>りHPの<ruby>式<rt>しき</rt></ruby>をかんせいさせよう！";
+    } else {
+      inputSlots.push({ type: 'text', val: `${currentEnemyHpBefore} - ${currentDamage} = ` });
+      inputSlots.push({ type: 'input', expect: answer, val: '' });
+      el("questionText").innerHTML = "<ruby>敵<rt>てき</rt></ruby>の<ruby>残<rt>のこ</rt></ruby>りHPを<ruby>計算<rt>けいさん</rt></ruby>してね";
+    }
+
+    el("questionBox").dataset.stage = "enemyHp";
+    hideHintButton();
+
+    updateFormulaDisplay();
+    setFeedback("<ruby>入<rt>にゅう</rt></ruby><ruby>力<rt>りょく</rt></ruby>したら「こたえる」を<ruby>押<rt>お</rt></ruby>してね！", "info");
+  }
+
+  function handleEnemyHpCorrect(){
+    setFeedback("<ruby>正解<rt>せいかい</rt></ruby>！", "correct");
+    setTimeout(() => {
+      enemyAttack();
+    }, 600);
+  }
+
+  function onEnemyDefeated(){
+    if (enemy.isBoss) {
+      sounds.playSE("boss_defeat");
+    } else {
+      sounds.playSE("enemy_defeat");
+    }
+
+    log(`${enemy.name} をたおした！`);
+    el("questionBox").classList.add("hidden");
+    setFeedback("", "info");
+    enemyIndex++;
+
+    if(enemyIndex >= hpList.length){
+      onGameClear();
+    } else {
+      showOverlay("win", `${enemy.name.replace("(ボス)","")} をたおした！`, "つぎの敵に進もう", ()=>{
+        spawnEnemy();
+        resetToIdle();
+      });
+    }
+  }
+
+  function enemyAttack(){
+    phase = "enemyAttacking";
+    el("questionBox").classList.add("hidden");
+    setFeedback(`${enemy.name} の こうげき！`, "info");
+    currentEnemyDmg = 3 + Math.floor(Math.random() * (4 + currentLv));
+
+    setTimeout(()=>{
+      sounds.playSE("enemy_attack");
+      triggerScreenShake();
+      showFloatDamage("playerCard", "-"+currentEnemyDmg, false);
+      log(`${enemy.name} の こうげき！ ${currentEnemyDmg} のダメージ`);
+
+      player.hp = Math.max(0, player.hp - currentEnemyDmg);
+      renderHp();
+
+      if(player.hp <= 0){
+        setTimeout(onPlayerDefeated, 500);
+      } else {
+        setTimeout(resetToIdle, 600);
+      }
+    }, 500);
+  }
+
+  function onGameClear(){
+    log("すべての敵をたおした！ ゲームクリア！");
+    showOverlay("clear", "ゲームクリア！🎉", `${playerName} は ぼうけんをやりとげた！`, backToTitle);
+  }
+
+  function onPlayerDefeated(){
+    phase = "idle";
+    el("questionBox").classList.add("hidden");
+    log(`${playerName} は たおれてしまった…`);
+    showOverlay("lose", "やられてしまった…", `てき ${enemyIndex+1}/${hpList.length} まで到達！`, backToTitle);
+  }
+
+  function resetToIdle(){
+    phase = "idle";
+    el("rollBtn").disabled = false;
+    el("questionBox").classList.add("hidden");
+    hideHintButton();
+    setFeedback("サイコロを<ruby>振<rt>ふ</rt></ruby>ってこうげきしよう！", "info");
+    renderDice([]);
+  }
+
+  function showOverlay(kind, title, msg, onContinue){
+    const overlay = el("overlay");
+    const card = el("overlayCard");
+    card.className = "overlay-card " + kind;
+    el("overlayTitle").textContent = title;
+    el("overlayMsg").textContent = msg;
+    el("overlayBtn").innerHTML = (kind === "win") ? "<ruby>次<rt>つぎ</rt></ruby>へ" : "タイトルへ<ruby>戻<rt>もど</rt></ruby>る";
+    overlay.classList.remove("hidden");
+    el("overlayBtn").onclick = ()=>{
+      sounds.playSE("select");
+      overlay.classList.add("hidden");
+      onContinue();
+    };
+  }
+
+  el("rollBtn").addEventListener("click", startRoll);
+  el("backTitleBtn").addEventListener("click", backToTitle);
+
+  initTitleScreen();
+})();
+</script>
+</body>
+</html>
