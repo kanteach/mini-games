@@ -7,20 +7,36 @@ const GAMES_DATA = [
         category: "タッチ・追視",
         bgColor: "bg-sky-100",
         targetAge: "幼児〜小学生・療育向け",
-        isNew: true
-    }
-
-    // ▼ 新しいゲームを追加するときは、上の { ... } の後ろにカンマ「,」をつけて以下のように足すだけ！
-    /*
-    ,{
-        title: "2つ目のゲームタイトル",
-        description: "ゲームの説明文をここに入れます。",
-        file: "games/game2.html",
-        icon: "🚀",
-        category: "パズル",
+        isNew: false
+    },
+    {
+        title: "せんなぞりゲーム",
+        description: "あかい くるまを ゆびで うごかして、スタートから ゴールまで せんの うえを はしろう！",
+        file: "line-trace.html",
+        icon: "🚗",
+        category: "ゆびさき・なぞり",
         bgColor: "bg-amber-100",
-        targetAge: "全年齢",
+        targetAge: "幼児〜小学生・療育向け",
+        isNew: true
+    },
+    {
+        title: "かたはめ パズル",
+        description: "したに ある カラフルな かたちを ゆびで はこんで、うえの おなじ かたちの わくに ぴったり はめよう！",
+        file: "shape-fit.html",
+        icon: "🧩",
+        category: "かたち・パズル",
+        bgColor: "bg-emerald-100",
+        targetAge: "幼児〜小学生・療育向け",
+        isNew: true
+    },
+    {
+        title: "いろあわせゲーム",
+        description: "あお・あか・きいろ・みどりの ボールを、おなじ いろの おおきな はこに どんどん いれよう！",
+        file: "color-match.html",
+        icon: "🎨",
+        category: "いろ・分類",
+        bgColor: "bg-rose-100",
+        targetAge: "幼児〜小学生・療育向け",
         isNew: true
     }
-    */
 ];
