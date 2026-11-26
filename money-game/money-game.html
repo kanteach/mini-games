@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>たのしいお金のべんきょう</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: "Comic Sans MS", "Arial Rounded MT Bold", sans-serif, "ヒラギノ丸ゴ ProN"; text-align: center; background-color: #f0f8ff; margin: 0; padding: 10px; height: 100vh; display: flex; flex-direction: column; user-select: none; touch-action: manipulation; }
+  .screen { display: none; height: 100%; flex-direction: column; justify-content: space-between; }
+  .active { display: flex; }
+  
+  button { font-size: 1.4rem; padding: 12px 24px; margin: 5px; border-radius: 20px; border: none; background: #ff9800; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 4px #e65100; transition: transform 0.1s; }
+  button:active { transform: translateY(4px); box-shadow: none; }
+  select { font-size: 1.2rem; padding: 10px; border-radius: 12px; border: 2px solid #ffb74d; background: #fff; font-weight: bold; color: #e65100; }
+
+  /* タイトル画面 */
+  #menu-screen { 
+    justify-content: center; 
+    align-items: center; 
+    gap: 20px; 
+    background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+    border-radius: 25px;
+    padding: 20px;
+    box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.8);
+  }
+  .title-logo {
+    font-size: 2.8rem;
+    color: #ff6f00;
+    text-shadow: 3px 3px 0px #fff, 6px 6px 0px #ffe082;
+    margin: 10px 0;
+    animation: bounce 1.5s infinite alternate ease-in-out;
+  }
+  @keyframes bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-10px); }
+  }
+  .level-box { 
+    background: rgba(255, 255, 255, 0.9); 
+    padding: 20px 30px; 
+    border-radius: 20px; 
+    border: 4px dashed #ffb74d; 
+    box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+  }
+  .menu-btn-container { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; }
+  .btn-study { background: #ff5722; box-shadow: 0 5px #bf360c; }
+  .btn-shop { background: #4caf50; box-shadow: 0 5px #1b5e20; }
+
+  #header { display: flex; justify-content: space-between; align-items: center; padding: 5px 15px; }
+  
+  /* 買うもの表示 */
+  #item-area { display: flex; align-items: center; justify-content: center; gap: 15px; background: #fff; padding: 8px; border-radius: 15px; border: 3px solid #ffb74d; margin-bottom: 5px; }
+  #item-icon { font-size: 2.5rem; }
+  #item-name { font-size: 1.5rem; font-weight: bold; }
+
+  /* 盤面 */
+  .board { display: flex; justify-content: center; gap: 1.5vw; flex: 1; min-height: 0; padding: 5px; }
+  .digit-column { flex: 1; max-width: 220px; display: flex; flex-direction: column; gap: 5px; }
+
+  /* 桁ごとの色分けテーマ */
+  .col-10000 { --main-color: #e91e63; --bg-color: #fce4ec; }
+  .col-1000  { --main-color: #9c27b0; --bg-color: #f3e5f5; }
+  .col-100   { --main-color: #2e7d32; --bg-color: #e8f5e9; }
+  .col-10    { --main-color: #1565c0; --bg-color: #e3f2fd; }
+  .col-1     { --main-color: #e65100; --bg-color: #fff3e0; }
+
+  /* 数字表示ボックス */
+  .digit-header-container { display: flex; align-items: center; }
+  .digit-box { border: 3px solid var(--main-color); background: #fff; border-radius: 8px; font-size: 2rem; font-weight: bold; height: 50px; display: flex; align-items: center; justify-content: center; color: var(--main-color); flex: 1; }
+  .currency-label { font-size: 1.8rem; font-weight: bold; padding-left: 5px; color: #333; }
+
+  /* 枠（縦5行・横2列） */
+  .grid-box { border: 3px solid var(--main-color); background: var(--bg-color); padding: 4px; border-radius: 12px; flex: 1; min-height: 0; display: grid; grid-template-rows: repeat(5, 1fr); grid-template-columns: repeat(2, 1fr); gap: 4px; grid-auto-flow: column; }
+  .slot { border: 1px dashed #bbb; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+  
+  /* 5区分（右列・縦5マス分結合） */
+  .slot-merged { grid-column: 2; grid-row: 1 / span 5; background: #fffdf0; border: 2px solid #ffd54f; }
+
+  /* お金トレイ */
+  .coin-trays { display: flex; justify-content: center; gap: 1.5vw; margin-top: 5px; }
+  .tray-column { flex: 1; max-width: 220px; display: flex; justify-content: center; gap: 8px; background: #f5f5f5; padding: 6px; border-radius: 10px; border: 2px solid #ccc; min-height: 60px; flex-wrap: wrap; align-items: center; }
+
+  /* 硬貨・お札共通要素 */
+  .money-item { cursor: grab; display: flex; align-items: center; justify-content: center; position: relative; width: 100%; height: 100%; touch-action: none; }
+  .money-item:active { cursor: grabbing; }
+  .money-item img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+
+  /* ドラッグ中の表示崩れ防止CSS */
+  .dragging-clone { 
+    position: fixed; 
+    pointer-events: none; 
+    z-index: 1000; 
+    transform: translate(-50%, -50%); 
+    opacity: 0.85; 
+    width: 65px !important; 
+    height: 65px !important; 
+    max-width: 65px !important;
+    max-height: 65px !important;
+  }
+  .dragging-clone img { width: 100%; height: 100%; object-fit: contain; }
+
+  /* 硬貨テキストデザイン（フォールバック用） */
+  .coin { border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 3px 5px rgba(0,0,0,0.2); aspect-ratio: 1 / 1; }
+  .c1    { background: #cfd8dc; color: #37474f; border: 3px solid #90a4ae; width: min(6vw, 45px); font-size: 0.9rem; } 
+  .c5    { background: #ffe082; color: #5d4037; border: 3px solid #ffb300; width: min(6vw, 45px); font-size: 0.9rem; } 
+  .c10   { background: #d7ccc8; color: #3e2723; border: 3px solid #8d6e63; width: min(6vw, 45px); font-size: 0.9rem; } 
+  .c50   { background: #b0bec5; color: #263238; border: 3px solid #78909c; width: min(6vw, 45px); font-size: 0.8rem; } 
+  .c100  { background: #b2dfdb; color: #004d40; border: 3px solid #4db6ac; width: min(6vw, 45px); font-size: 0.8rem; } 
+  .c500  { background: #ffecb3; color: #e65100; border: 3px solid #ffca28; width: min(6vw, 45px); font-size: 0.7rem; } 
+
+  /* お札テキストデザイン（フォールバック用） */
+  .bill { border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 3px 5px rgba(0,0,0,0.2); width: min(10vw, 75px); height: min(5vw, 40px); font-size: 0.8rem; }
+  .c1000 { background: #d1c4e9; color: #4a148c; border: 2px solid #7e57c2; }
+  .c5000 { background: #ffe0b2; color: #e65100; border: 2px solid #ff8f00; }
+  .c10000 { background: #f8bbd0; color: #880e4f; border: 2px solid #ec407a; }
+
+  /* 枠内の大型表示 */
+  .coin-large { width: min(12vw, 70px) !important; height: min(12vw, 70px) !important; font-size: 1.2rem; }
+  .bill-large { width: 90% !important; height: min(8vw, 50px) !important; font-size: 0.9rem; }
+
+  /* 正解・不正解演出 */
+  .overlay-effect { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; font-size: 10vw; justify-content: center; align-items: center; z-index: 100; font-weight: bold; flex-direction: column; cursor: pointer; }
+  #effect-ok { background: rgba(255, 215, 0, 0.92); color: #d50000; animation: pulse 0.3s infinite alternate; }
+  #effect-ng { background: rgba(0, 0, 0, 0.75); color: #ff1744; }
+  .ng-mark { font-size: 35vw; line-height: 1; text-shadow: 0 0 20px rgba(255,255,255,0.8); }
+  .ng-msg { font-size: 2.5rem; color: #fff; margin-top: -20px; font-weight: bold; }
+
+  @keyframes pulse { from { transform: scale(0.95); } to { transform: scale(1.05); } }
+
+  /* モーダル */
+  #custom-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 200; justify-content: center; align-items: center; }
+  .custom-modal-box { background: #fff; border: 5px solid #ff9800; border-radius: 25px; padding: 25px 30px; width: 90%; max-width: 420px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; animation: popIn 0.2s ease-out; }
+  @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-text { font-size: 1.8rem; color: #333; font-weight: bold; margin-bottom: 20px; line-height: 1.4; }
+  .modal-btn { font-size: 2rem; padding: 15px 40px; background: #ff9800; color: white; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 6px #e65100; width: 100%; }
+  .modal-btn:active { transform: translateY(4px); box-shadow: none; }
+
+  /* お買い物 */
+  .shop-shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 10px; overflow-y: auto; max-height: 45vh; }
+  .shop-item { border: 2px solid #ffb74d; background: white; padding: 10px; border-radius: 12px; cursor: pointer; }
+  .shop-item-icon { font-size: 2.5rem; }
+  #cart { margin-top: 10px; padding: 10px; background: #fff9c4; border-radius: 12px; border: 2px solid #fbc02d; }
+/* 両替トレイ用の拡大表示設定 */
+  #exchange-trays-container .money-item {
+    width: min(18vw, 100px) !important;
+    height: min(18vw, 100px) !important;
+  }
+  #exchange-trays-container .money-item.bill {
+    width: min(28vw, 150px) !important;
+    height: min(14vw, 80px) !important;
+  }
+</style>
+</head>
+<body>
+
+<!-- タイトル画面 -->
+<div id="menu-screen" class="screen active">
+  <div class="title-logo">🪙 たのしいお金のゲーム 🛒</div>
+  <div class="level-box">
+    <h3 style="margin: 0 0 10px 0; color:#e65100;">🎯 むずかしさを えらんでね</h3>
+    <select id="level-select">
+      <option value="1">レベル1 (1~9えん・1えんのみ)</option>
+      <option value="2">レベル2 (10~90えん・10えんのみ)</option>
+      <option value="3">レベル3 (100~900えん・100えんのみ)</option>
+      <option value="4">レベル4 (1~9えん・5えんあり)</option>
+      <option value="5">レベル5 (10~90えん・50えんあり)</option>
+      <option value="6">レベル6 (100~900えん・500えんあり)</option>
+      <option value="7">レベル7 (10~99えん)</option>
+      <option value="8">レベル8 (10~99えん・ぜんぶ)</option>
+      <option value="9">レベル9 (100~999えん)</option>
+      <option value="10">レベル10 (100~999えん・ぜんぶ)</option>
+    </select>
+  </div>
+  <div class="menu-btn-container">
+    <button class="btn-study" onclick="startStudyMode()">✏️ お金のべんきょう</button>
+    <button class="btn-shop" onclick="startShopMode()">🛍️ おかいものあそび</button>
+    <button class="btn-count" style="background:#9c27b0; box-shadow:0 5px #4a148c;" onclick="startCountMode()">🔢 お金をかぞえる</button>
+    <button class="btn-exchange" style="background:#00bcd4; box-shadow:0 5px #00838f;" onclick="startExchangeMode()">🔄 りょうがえ</button>
+  </div>
+</div>
+
+<!-- モード1: お金のべんきょう -->
+<div id="study-screen" class="screen">
+  <div id="header">
+    <button onclick="showMenu()" style="font-size: 1rem; margin:0; padding: 6px 12px;">← もどる</button>
+    <div style="font-size:1.2rem; font-weight:bold;">お金のべんきょう</div>
+  </div>
+
+  <div id="item-area">
+    <div id="item-icon">🍎</div>
+    <div id="item-name">りんご</div>
+  </div>
+
+  <!-- 盤面 -->
+  <div class="board" id="board-container"></div>
+
+  <!-- 硬貨・お札トレイ -->
+  <div class="coin-trays" id="trays-container"></div>
+
+  <div style="padding: 5px;">
+    <button onclick="checkAnswer()" style="font-size: 1.6rem; background: #4caf50; width: 80%; max-width: 350px;">できた！</button>
+  </div>
+</div>
+
+<!-- モード2: お買い物 -->
+<div id="shop-screen" class="screen">
+  <h2>いらっしゃいませ！</h2>
+  <div class="shop-shelf" id="shop-shelf"></div>
+  <div id="cart">
+    <h3>かいものかご (<span id="cart-count">0</span>/20こ)</h3>
+    <div id="cart-items" style="font-size: 1.1rem; max-height: 60px; overflow-y: auto;">なし</div>
+    <p style="font-size: 1.4rem; font-weight: bold; margin: 5px 0;">ごうけい: <span id="cart-total">0</span> 円</p>
+    <button onclick="goToCheckout()">おかいけいへ</button>
+  </div>
+  <button onclick="showMenu()">メニューへ</button>
+</div>
+
+<!-- モード3: お金を数える -->
+<div id="count-screen" class="screen">
+  <div id="header">
+    <button onclick="showMenu()" style="font-size: 1rem; margin:0; padding: 6px 12px;">← もどる</button>
+    <div style="font-size:1.2rem; font-weight:bold;">お金をかぞえよう</div>
+  </div>
+
+  <div style="font-size: 1.5rem; font-weight: bold; margin: 10px 0;">
+    ぜんぶで いくらかな？
+  </div>
+
+  <!-- 出題用のお金が表示されるトレイ -->
+  <div id="count-display-area" style="background: #fff; border: 3px dashed #9c27b0; border-radius: 20px; padding: 15px; margin: 10px; flex: 1; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; min-height: 180px;"></div>
+
+  <!-- 回答入力エリア（テンキー表示） -->
+  <div style="background: #e1bee7; padding: 10px; border-radius: 15px; margin: 10px;">
+    <div style="font-size: 2rem; background: #fff; border: 2px solid #9c27b0; border-radius: 10px; padding: 5px 15px; margin-bottom: 10px; min-height: 50px; display: flex; align-items: center; justify-content: flex-end;">
+      <span id="count-answer-text" style="color:#4a148c; font-weight:bold;"></span><span style="font-size:1.5rem; margin-left:5px;">円</span>
+    </div>
+
+    <!-- テンキーボタン -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-width: 300px; margin: 0 auto;">
+      <button onclick="appendTenkey(7)">7</button>
+      <button onclick="appendTenkey(8)">8</button>
+      <button onclick="appendTenkey(9)">9</button>
+      <button onclick="appendTenkey(4)">4</button>
+      <button onclick="appendTenkey(5)">5</button>
+      <button onclick="appendTenkey(6)">6</button>
+      <button onclick="appendTenkey(1)">1</button>
+      <button onclick="appendTenkey(2)">2</button>
+      <button onclick="appendTenkey(3)">3</button>
+      <button onclick="clearTenkey()" style="background:#f44336; box-shadow:0 4px #b71c1c; font-size:1.2rem; padding:10px 0;">けす</button>
+      <button onclick="appendTenkey(0)" style="font-size:1.4rem; padding:10px 0;">0</button>
+      <button onclick="checkCountAnswer()" style="background:#4caf50; box-shadow:0 4px #1b5e20; font-size:1.1rem; padding:10px 0;">こたえる</button>
+    </div>
+  </div>
+</div>
+
+<!-- モード4: りょうがえ -->
+<div id="exchange-screen" class="screen">
+  <div id="header">
+    <button onclick="showMenu()" style="font-size: 1rem; margin:0; padding: 6px 12px;">← もどる</button>
+    <div style="font-size:1.2rem; font-weight:bold;">りょうがえの べんきょう</div>
+  </div>
+
+  <div style="font-size: 1.4rem; font-weight: bold; margin: 5px 0; color: #00838f;" id="exchange-msg">
+    おなじ きんがくに なるように りょうがえ しよう！
+  </div>
+
+  <!-- 両替エリア（左：もとの金、右：いれる枠） -->
+  <div style="display: flex; justify-content: center; gap: 10px; margin: 5px; flex: 1; min-height: 0;">
+    <!-- 左：もとの おかね -->
+    <div style="flex: 1; background: #e0f7fa; border: 3px solid #00bcd4; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center;">
+      <div style="font-weight: bold; color: #00838f; margin-bottom: 5px;">もとの おかね</div>
+      <div id="exchange-source-area" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; flex: 1;"></div>
+      <div style="font-size: 1.2rem; font-weight: bold; color: #00838f; margin-top: 5px;">
+        ごうけい: <span id="exchange-source-total">0</span>えん
+      </div>
+    </div>
+
+    <!-- 右：かえる おかね -->
+    <div style="flex: 1; background: #fffde7; border: 3px dashed #fbc02d; border-radius: 15px; padding: 10px; display: flex; flex-direction: column; align-items: center;">
+      <div style="font-weight: bold; color: #f57f17; margin-bottom: 5px;">かえる おかね（ここに入れる）</div>
+      <div id="exchange-target-area" class="grid-box" data-digit="exchange" style="width: 100%; flex: 1; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; min-height: 120px; background: rgba(255,255,255,0.7);"></div>
+      <div style="font-size: 1.2rem; font-weight: bold; color: #f57f17; margin-top: 5px;">
+        ごうけい: <span id="exchange-target-total">0</span>えん
+      </div>
+    </div>
+  </div>
+
+  <!-- 硬貨・お札トレイ -->
+  <div class="coin-trays" id="exchange-trays-container"></div>
+
+  <div style="padding: 5px;">
+    <button onclick="checkExchangeAnswer()" style="font-size: 1.6rem; background: #4caf50; width: 80%; max-width: 350px;">できた！</button>
+  </div>
+</div>
+
+<!-- 正解演出 -->
+<div id="effect-ok" class="overlay-effect">✨ だいせいかい！ ✨</div>
+
+<!-- 不正解演出 -->
+<div id="effect-ng" class="overlay-effect" onclick="hideNgEffect()">
+  <div class="ng-mark">❌</div>
+  <div class="ng-msg">おしい！ もういちど かんがえてみよう</div>
+</div>
+
+<!-- 子ども向けカスタムモーダル -->
+<div id="custom-modal-overlay">
+  <div class="custom-modal-box">
+    <div class="modal-text" id="modal-msg">わくが いっぱいです！</div>
+    <button class="modal-btn" onclick="closeCustomModal()">オッケー！</button>
+  </div>
+</div>
+
+<script>
+const itemDatabase = [
+  { name: 'りんご', icon: '🍎' }, { name: 'バナナ', icon: '🍌' }, { name: 'ケーキ', icon: '🍰' },
+  { name: 'ドーナツ', icon: '🍩' }, { name: 'キャンディ', icon: '🍬' }, { name: 'えんぴつ', icon: '✏️' },
+  { name: 'ノート', icon: '📓' }, { name: 'けしごむ', icon: '🧹' }, { name: 'サッカーボール', icon: '⚽' },
+  { name: 'ミニカー', icon: '🚗' }, { name: 'ぬいぐるみ', icon: '🧸' }, { name: 'ロボット', icon: '🤖' },
+  { name: 'えほん', icon: '📚' }, { name: 'ジュース', icon: '🧃' }, { name: 'アイス', icon: '🍨' },
+  { name: 'おにぎり', icon: '🍙' }, { name: 'パン', icon: '🍞' }, { name: 'とけい', icon: '⏰' },
+  { name: 'ふうせん', icon: '🎈' }, { name: 'ぼうし', icon: '🧢' }, { name: 'いちご', icon: '🍓' },
+  { name: 'ぶどう', icon: '🍇' }, { name: 'すいか', icon: '🍉' }, { name: 'モモ', icon: '🍑' },
+  { name: 'プリン', icon: '🍮' }, { name: 'クッキー', icon: '🍪' }, { name: 'チョコ', icon: '🍫' },
+  { name: 'ポテチ', icon: '🥔' }, { name: 'ラーメン', icon: '🍜' }, { name: 'ピザ', icon: '🍕' },
+  { name: 'ハンバーガー', icon: '🍔' }, { name: 'ポテト', icon: '🍟' }, { name: 'おすし', icon: '🍣' },
+  { name: 'エビフライ', icon: '🍤' }, { name: 'ハサミ', icon: '✂️' }, { name: 'じょうぎ', icon: '📐' },
+  { name: 'クレヨン', icon: '🖍️' }, { name: 'えのぐ', icon: '🎨' }, { name: 'ふうりん', icon: '🎐' },
+  { name: 'トランプ', icon: '🃏' }, { name: 'ゲーム', icon: '🎮' }, { name: 'はなたば', icon: '💐' },
+  { name: 'うえき', icon: '🪴' }, { name: 'くつした', icon: '🧦' }, { name: 'Tシャツ', icon: '👕' },
+  { name: 'かさ', icon: '☂️' }, { name: 'むしめがね', icon: '🔍' }, { name: 'めがね', icon: '👓' },
+  { name: 'すいとう', icon: '🍼' }, { name: 'べんとう', icon: '🍱' }, { name: 'コップ', icon: '🥤' },
+  { name: 'はぶらし', icon: '🪥' }, { name: 'せっけん', icon: '🧼' }, { name: 'かざぐるま', icon: '🍥' },
+  { name: 'かいがら', icon: '🐚' }, { name: 'どんぐり', icon: '🌰' }, { name: 'おりがみ', icon: '📄' },
+  { name: 'ガム', icon: '🫧' }, { name: 'たいやき', icon: '🐟' }, { name: 'だんご', icon: '🍡' }
+];
+
+let currentTargetPrice = 0;
+let currentLevel = 1;
+let activeDigits = [100, 10, 1];
+let insertedCoins = {};
+let isShopMode = false;
+let cart = [];
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showMenu() { showScreen('menu-screen'); }
+
+function showAlertModal(msg) {
+  document.getElementById('modal-msg').innerText = msg;
+  document.getElementById('custom-modal-overlay').style.display = 'flex';
+}
+
+function closeCustomModal() {
+  document.getElementById('custom-modal-overlay').style.display = 'none';
+}
+
+function startStudyMode() {
+  isShopMode = false;
+  currentLevel = parseInt(document.getElementById('level-select').value);
+  showScreen('study-screen');
+  initQuestion();
+}
+
+function startShopMode() {
+  isShopMode = true;
+  cart = [];
+  updateCart();
+  
+  const selectedItems = [...itemDatabase].sort(() => Math.random() - 0.5).slice(0, 15);
+  const shelf = document.getElementById('shop-shelf');
+  shelf.innerHTML = '';
+  
+  selectedItems.forEach(p => {
+    const price = Math.floor(Math.random() * 646) + 5;
+    shelf.innerHTML += `<div class="shop-item" onclick="addToCart('${p.name}', ${price}, '${p.icon}')">
+      <div class="shop-item-icon">${p.icon}</div>
+      <div>${p.name}</div>
+      <div style="font-weight:bold; color:#e65100;">${price}円</div>
+    </div>`;
+  });
+  showScreen('shop-screen');
+}
+
+function initQuestion() {
+  if (!isShopMode) {
+    currentTargetPrice = generatePriceByLevel(currentLevel);
+    const randomItem = itemDatabase[Math.floor(Math.random() * itemDatabase.length)];
+    document.getElementById('item-icon').innerText = randomItem.icon;
+    document.getElementById('item-name').innerText = randomItem.name;
+  }
+
+  if (currentTargetPrice >= 10000) activeDigits = [10000, 1000, 100, 10, 1];
+  else if (currentTargetPrice >= 1000) activeDigits = [1000, 100, 10, 1];
+  else activeDigits = [100, 10, 1];
+
+  setupBoardAndTrays();
+  updateDigitDisplay(currentTargetPrice);
+  resetGrids();
+  renderCoins();
+}
+
+function setupBoardAndTrays() {
+  const board = document.getElementById('board-container');
+  const trays = document.getElementById('trays-container');
+  board.innerHTML = '';
+  trays.innerHTML = '';
+
+  activeDigits.forEach((digit, idx) => {
+    const isLast = (idx === activeDigits.length - 1);
+    board.innerHTML += `
+      <div class="digit-column col-${digit}">
+        <div class="digit-header-container">
+          <div class="digit-box" id="d-${digit}"></div>
+          ${isLast ? '<div class="currency-label">円</div>' : ''}
+        </div>
+        <div class="grid-box" id="grid-${digit}" data-digit="${digit}"></div>
+      </div>
+    `;
+    trays.innerHTML += `<div class="tray-column" id="tray-${digit}"></div>`;
+  });
+}
+
+function updateDigitDisplay(price) {
+  const maxLen = activeDigits.length;
+  const pStr = price.toString().padStart(maxLen, '0');
+  let showFlag = false;
+  activeDigits.forEach((digit, idx) => {
+    const char = pStr[idx];
+    if (char !== '0' || idx === maxLen - 1) showFlag = true;
+    document.getElementById(`d-${digit}`).innerText = showFlag ? char : '';
+  });
+}
+
+function generatePriceByLevel(lvl) {
+  const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  switch(lvl) {
+    case 1: return rand(1, 9);
+    case 2: return rand(1, 9) * 10;
+    case 3: return rand(1, 9) * 100;
+    case 4: return rand(5, 9);          // 1の位が5~9円
+    case 5: return rand(5, 9) * 10;     // 10の位が5~9（50~90円）
+    case 6: return rand(5, 9) * 100;    // 100の位が5~9（500~900円）
+    case 7: return rand(10, 99);
+    case 8: return rand(5, 9) * 10 + rand(5, 9); // 10の位も1の位も5~9（55~99円）
+    case 9: return rand(100, 999);
+    case 10: return rand(100, 999);
+  }
+}
+
+function createMoneyHTML(val, isLarge = false) {
+  const isBill = (val >= 1000);
+  const prefix = isBill ? 'bill' : 'coin';
+  const imgPath = `${prefix}${val}.png`;
+  const sizeClass = isLarge ? (isBill ? 'bill-large' : 'coin-large') : '';
+  const textClass = isBill ? `bill c${val}` : `coin c${val}`;
+
+  return `
+    <div class="money-item ${sizeClass} ${textClass}" 
+         data-val="${val}"
+         title="${val}円">
+      <img src="${imgPath}" alt="${val}円" 
+           onload="this.nextElementSibling.style.display='none';" 
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+      <span style="display:none;">${val}円</span>
+    </div>
+  `;
+}
+
+function renderCoins() {
+  activeDigits.forEach(digit => {
+    const tray = document.getElementById(`tray-${digit}`);
+    if (!tray) return;
+    tray.innerHTML = '';
+
+    const coins = getAvailableCoinsForDigit(digit);
+    coins.forEach(val => {
+      const html = createMoneyHTML(val, false);
+      const temp = document.createElement('div');
+      temp.innerHTML = html.trim();
+      const moneyEl = temp.firstChild;
+      
+      // トレイから枠へのドラッグ/タップ設定 (type = 'add')
+      setupDragAndTap(moneyEl, val, 'add');
+      tray.appendChild(moneyEl);
+    });
+  });
+}
+
+// タッチ＆マウス両対応（二重発火防止対応版）
+let activeClone = null;
+
+function setupDragAndTap(el, val, mode, digit = 0, index = 0) {
+  let isDragging = false;
+  let startX = 0, startY = 0;
+  let hasHandledTap = false; // 二重発火防止フラグ
+
+  const handleStart = (e) => {
+    // タッチ操作とクリック操作が混ざった場合の二重発火をブロック
+    if (e.type === 'mousedown' && hasHandledTap) {
+      hasHandledTap = false;
+      return;
+    }
+
+    const point = e.touches ? e.touches[0] : e;
+    startX = point.clientX;
+    startY = point.clientY;
+    isDragging = false;
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
+  };
+
+  const handleMove = (e) => {
+    const point = e.touches ? e.touches[0] : e;
+    const dx = point.clientX - startX;
+    const dy = point.clientY - startY;
+
+    if (!isDragging && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+      isDragging = true;
+      activeClone = el.cloneNode(true);
+      activeClone.classList.add('dragging-clone');
+      document.body.appendChild(activeClone);
+    }
+
+    if (isDragging && activeClone) {
+      if (e.cancelable) e.preventDefault();
+      activeClone.style.left = `${point.clientX}px`;
+      activeClone.style.top = `${point.clientY}px`;
+    }
+  };
+
+  const handleEnd = (e) => {
+    document.removeEventListener('mousemove', handleMove);
+    document.removeEventListener('mouseup', handleEnd);
+    document.removeEventListener('touchmove', handleMove);
+    document.removeEventListener('touchend', handleEnd);
+
+    if (isDragging && activeClone) {
+      const point = e.changedTouches ? e.changedTouches[0] : e;
+      activeClone.remove();
+      activeClone = null;
+
+      const dropTarget = document.elementFromPoint(point.clientX, point.clientY);
+      
+      if (mode === 'add') {
+        const gridBox = dropTarget ? dropTarget.closest('.grid-box') : null;
+        if (gridBox) {
+          const targetDigit = parseInt(gridBox.dataset.digit);
+          addCoinToDigit(val, targetDigit);
+        }
+      } else if (mode === 'remove') {
+        const gridBox = dropTarget ? dropTarget.closest('.grid-box') : null;
+        if (!gridBox) {
+          removeCoin(digit, index);
+        }
+      }
+    } else {
+      // タップ/クリック実行（二重実行を防ぐガード）
+      if (e.type === 'touchend') {
+        hasHandledTap = true;
+        setTimeout(() => { hasHandledTap = false; }, 400); // 0.4秒間クリックをキャンセル
+      }
+
+      if (mode === 'add') {
+        addCoinByClick(val);
+      } else if (mode === 'remove') {
+        removeCoin(digit, index);
+      }
+    }
+  };
+
+  el.addEventListener('mousedown', handleStart);
+  el.addEventListener('touchstart', handleStart, { passive: true });
+}
+
+function getAvailableCoinsForDigit(digit) {
+  if (isShopMode) {
+    if (digit === 10000) return [10000];
+    if (digit === 1000) return [1000, 5000];
+    if (digit === 100) return [100, 500];
+    if (digit === 10) return [10, 50];
+    if (digit === 1) return [1, 5];
+  }
+  const coins = getAvailableCoinsByLevel(currentLevel);
+  return coins.filter(v => {
+    if (digit === 100 && (v === 100 || v === 500)) return true;
+    if (digit === 10 && (v === 10 || v === 50)) return true;
+    if (digit === 1 && (v === 1 || v === 5)) return true;
+    return false;
+  });
+}
+
+function getAvailableCoinsByLevel(lvl) {
+  switch(lvl) {
+    case 1: return [1];
+    case 2: return [10];
+    case 3: return [100];
+    case 4: return [1, 5];
+    case 5: return [10, 50];
+    case 6: return [100, 500];
+    case 7: return [1, 10];
+    case 8: return [1, 5, 10, 50];
+    case 9: return [1, 10, 100];
+    case 10: return [1, 5, 10, 50, 100, 500];
+  }
+}
+
+function addCoinByClick(val) {
+  let targetDigit = 1;
+  if (val === 10000) targetDigit = 10000;
+  else if (val === 1000 || val === 5000) targetDigit = 1000;
+  else if (val === 100 || val === 500) targetDigit = 100;
+  else if (val === 10 || val === 50) targetDigit = 10;
+  
+  addCoinToDigit(val, targetDigit);
+}
+
+function addCoinToDigit(val, targetDigit) {
+  let allowedDigit = 1;
+  if (val === 10000) allowedDigit = 10000;
+  else if (val === 1000 || val === 5000) allowedDigit = 1000;
+  else if (val === 100 || val === 500) allowedDigit = 100;
+  else if (val === 10 || val === 50) allowedDigit = 10;
+
+  if (allowedDigit !== targetDigit) {
+    showAlertModal(`${targetDigit}えんの わくには はいりません！`);
+    return;
+  }
+
+  const is5Coin = (val === 5 || val === 50 || val === 500 || val === 5000);
+  const cost = is5Coin ? 5 : 1;
+  const has5Coin = insertedCoins[targetDigit].some(v => v === 5 || v === 50 || v === 500 || v === 5000);
+  
+  if (is5Coin && has5Coin) {
+    showAlertModal("5のつく おかねは 1まいしか はいりません！");
+    return;
+  }
+
+  const currentCount = insertedCoins[targetDigit].reduce((sum, v) => sum + ((v===5||v===50||v===500||v===5000)?5:1), 0);
+
+  if (currentCount + cost <= 10) {
+    insertedCoins[targetDigit].push(val);
+    updateGridUI(targetDigit);
+  } else {
+    showAlertModal("わくが いっぱいです！");
+  }
+}
+
+function removeCoin(digit, index) {
+  insertedCoins[digit].splice(index, 1);
+  updateGridUI(digit);
+}
+
+function resetGrids() {
+  insertedCoins = {};
+  activeDigits.forEach(d => {
+    insertedCoins[d] = [];
+    updateGridUI(d);
+  });
+}
+
+function updateGridUI(digit) {
+  const grid = document.getElementById(`grid-${digit}`);
+  if (!grid) return;
+  grid.innerHTML = '';
+
+  const coins = insertedCoins[digit] || [];
+  const coin5Index = coins.findIndex(v => v === 5 || v === 50 || v === 500 || v === 5000);
+
+  // 5系（右列固定）
+  if (coin5Index !== -1) {
+    const val = coins[coin5Index];
+    const mergedSlot = document.createElement('div');
+    mergedSlot.className = 'slot slot-merged';
+    
+    const moneyHTML = createMoneyHTML(val, true);
+    const temp = document.createElement('div');
+    temp.innerHTML = moneyHTML.trim();
+    const moneyEl = temp.firstChild;
+
+    // 枠内のお金をドラッグ/タップで取り出す設定 (mode = 'remove')
+    setupDragAndTap(moneyEl, val, 'remove', digit, coin5Index);
+
+    mergedSlot.appendChild(moneyEl);
+    grid.appendChild(mergedSlot);
+  }
+
+  // 通常枚数
+  let normalCount = 0;
+  coins.forEach((val, idx) => {
+    if (val === 5 || val === 50 || val === 500 || val === 5000) return;
+
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    
+    const col = (normalCount < 5) ? 1 : 2;
+    const row = (normalCount % 5) + 1;
+
+    slot.style.gridColumn = `${col}`;
+    slot.style.gridRow = `${row}`;
+    
+    const moneyHTML = createMoneyHTML(val, true);
+    const temp = document.createElement('div');
+    temp.innerHTML = moneyHTML.trim();
+    const moneyEl = temp.firstChild;
+
+    // 枠内のお金をドラッグ/タップで取り出す設定 (mode = 'remove')
+    setupDragAndTap(moneyEl, val, 'remove', digit, idx);
+
+    slot.appendChild(moneyEl);
+    grid.appendChild(slot);
+    normalCount++;
+  });
+
+  // 空きマスの補完
+  for (let col = 1; col <= 2; col++) {
+    for (let row = 1; row <= 5; row++) {
+      if (col === 2 && coin5Index !== -1) continue;
+
+      const posIndex = (col - 1) * 5 + (row - 1);
+      if (posIndex >= normalCount) {
+        const emptySlot = document.createElement('div');
+        emptySlot.className = 'slot';
+        emptySlot.style.gridColumn = `${col}`;
+        emptySlot.style.gridRow = `${row}`;
+        grid.appendChild(emptySlot);
+      }
+    }
+  }
+}
+
+function checkAnswer() {
+  let total = 0;
+  activeDigits.forEach(d => {
+    (insertedCoins[d] || []).forEach(val => { total += val; });
+  });
+
+  if (total === currentTargetPrice) {
+    const eff = document.getElementById('effect-ok');
+    eff.style.display = 'flex';
+    setTimeout(() => {
+      eff.style.display = 'none';
+      if(isShopMode) showMenu();
+      else initQuestion();
+    }, 1500);
+  } else {
+    document.getElementById('effect-ng').style.display = 'flex';
+  }
+}
+
+function hideNgEffect() {
+  document.getElementById('effect-ng').style.display = 'none';
+}
+
+function addToCart(name, price, icon) {
+  if (cart.length >= 20) {
+    showAlertModal("かごが いっぱいです！（さいだい20こまで）");
+    return;
+  }
+  cart.push({name, price, icon});
+  updateCart();
+}
+
+function updateCart() {
+  const list = document.getElementById('cart-items');
+  const totalElem = document.getElementById('cart-total');
+  const countElem = document.getElementById('cart-count');
+  
+  countElem.innerText = cart.length;
+
+  if (cart.length === 0) {
+    list.innerText = 'なし';
+    totalElem.innerText = 0;
+    return;
+  }
+  list.innerText = cart.map(c => `${c.icon}${c.name}`).join(', ');
+  totalElem.innerText = cart.reduce((sum, c) => sum + c.price, 0);
+}
+
+function goToCheckout() {
+  if (cart.length === 0) return showAlertModal("しょうひんを えらんでね");
+  currentTargetPrice = cart.reduce((sum, c) => sum + c.price, 0);
+  document.getElementById('item-icon').innerText = '🛒';
+  document.getElementById('item-name').innerText = 'ごうけい';
+  showScreen('study-screen');
+  initQuestion();
+}
+
+// --- モード3: お金を数えるモードの処理 ---
+let countTargetTotal = 0;
+let userCountAnswer = "";
+
+function startCountMode() {
+  currentLevel = parseInt(document.getElementById('level-select').value);
+  showScreen('count-screen');
+  initCountQuestion();
+}
+
+function initCountQuestion() {
+  userCountAnswer = "";
+  updateTenkeyDisplay();
+  
+  // 難易度（レベル）に応じて目標金額を生成
+  countTargetTotal = generatePriceByLevel(currentLevel);
+  
+  // 選択中のレベルで許可されたお金（金種）のみを使って分解
+  const coinsToDisplay = breakDownMoneyByLevel(countTargetTotal, currentLevel);
+  
+  const displayArea = document.getElementById('count-display-area');
+  displayArea.innerHTML = '';
+  
+  // 高い金額順（左から右）に整列して表示
+  coinsToDisplay.sort((a, b) => b - a).forEach(val => {
+    const html = createMoneyHTML(val, true);
+    const temp = document.createElement('div');
+    temp.innerHTML = html.trim();
+    const moneyEl = temp.firstChild;
+    moneyEl.style.cursor = 'default';
+    displayArea.appendChild(moneyEl);
+  });
+}
+
+// レベルで許可された金種のみを使って金額を分解する処理
+function breakDownMoneyByLevel(amount, lvl) {
+  const result = [];
+  // 選択されたレベルで使用可能な金種（降順）を取得
+  const allowedDenoms = getAvailableCoinsByLevel(lvl).sort((a, b) => b - a);
+  
+  let rem = amount;
+  allowedDenoms.forEach(d => {
+    while (rem >= d) {
+      result.push(d);
+      rem -= d;
+    }
+  });
+  return result;
+}
+// 金額を枚数に分解する処理
+function breakDownMoney(amount, lvl) {
+  const result = [];
+  // レベルに応じて使用する金種を決定
+  let denoms = [10000, 5000, 1000, 500, 100, 50, 10, 5, 1];
+  
+  // レベル1: 1円のみ / レベル2: 10円のみ / レベル3: 100円のみ
+  if (lvl === 1) denoms = [1];
+  else if (lvl === 2) denoms = [10];
+  else if (lvl === 3) denoms = [100];
+  // レベル4: 1, 5円 / レベル5: 10, 50円 / レベル6: 100, 500円
+  else if (lvl === 4) denoms = [5, 1];
+  else if (lvl === 5) denoms = [50, 10];
+  else if (lvl === 6) denoms = [500, 100];
+
+  let rem = amount;
+  denoms.forEach(d => {
+    while (rem >= d) {
+      result.push(d);
+      rem -= d;
+    }
+  });
+  return result;
+}
+
+// テンキー操作
+function appendTenkey(num) {
+  if (userCountAnswer.length < 6) { // 最大6桁まで
+    userCountAnswer += num.toString();
+    updateTenkeyDisplay();
+  }
+}
+
+function clearTenkey() {
+  userCountAnswer = "";
+  updateTenkeyDisplay();
+}
+
+function updateTenkeyDisplay() {
+  document.getElementById('count-answer-text').innerText = userCountAnswer;
+}
+
+// 判定
+function checkCountAnswer() {
+  if (userCountAnswer === "") return showAlertModal("すうじを にゅうりょくしてね");
+  
+  const answerVal = parseInt(userCountAnswer);
+  if (answerVal === countTargetTotal) {
+    const eff = document.getElementById('effect-ok');
+    eff.style.display = 'flex';
+    setTimeout(() => {
+      eff.style.display = 'none';
+      initCountQuestion();
+    }, 1500);
+  } else {
+    document.getElementById('effect-ng').style.display = 'flex';
+  }
+}
+
+// --- モード4: りょうがえモードの処理 ---
+let exchangeSourceTotal = 0;
+let exchangeInsertedCoins = [];
+let exchangeAllowedCoins = []; // 出題レベルに応じてトレイに出す金種リスト
+
+function startExchangeMode() {
+  currentLevel = parseInt(document.getElementById('level-select').value);
+  showScreen('exchange-screen');
+  initExchangeQuestion();
+}
+
+function initExchangeQuestion() {
+  exchangeInsertedCoins = [];
+  
+  // 選択されたレベルに合わせて問題と使える金種を決定
+  const problemData = generateExchangeProblemByLevel(currentLevel);
+  exchangeSourceTotal = problemData.source.reduce((sum, v) => sum + v, 0);
+  exchangeAllowedCoins = problemData.allowed;
+
+  // もとの おかねを表示
+  const sourceArea = document.getElementById('exchange-source-area');
+  sourceArea.innerHTML = '';
+  problemData.source.forEach(val => {
+    const html = createMoneyHTML(val, true);
+    const temp = document.createElement('div');
+    temp.innerHTML = html.trim();
+    const moneyEl = temp.firstChild;
+    moneyEl.style.cursor = 'default';
+    sourceArea.appendChild(moneyEl);
+  });
+  document.getElementById('exchange-source-total').innerText = exchangeSourceTotal;
+
+  // トレイの初期化（該当レベルに必要な金種だけを大きく表示）
+  setupExchangeTrays();
+  updateExchangeTargetUI();
+}
+
+// レベル別の出題＆トレイ金種生成ロジック（双方向対応版）
+function generateExchangeProblemByLevel(lvl) {
+  const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const isReverse = Math.random() < 0.5; // 50%の確率で「崩す」と「まとめる」を反転
+
+  switch(lvl) {
+    case 1: // 5円/10円 ⇄ 1円
+      if (rand(1, 2) === 1) {
+        return isReverse ? { source: Array(5).fill(1), allowed: [5] } : { source: [5], allowed: [1] };
+      } else {
+        return isReverse ? { source: Array(10).fill(1), allowed: [10] } : { source: [10], allowed: [1] };
+      }
+    
+    case 2: // 50円/100円 ⇄ 10円
+      if (rand(1, 2) === 1) {
+        return isReverse ? { source: Array(5).fill(10), allowed: [50] } : { source: [50], allowed: [10] };
+      } else {
+        return isReverse ? { source: Array(10).fill(10), allowed: [100] } : { source: [100], allowed: [10] };
+      }
+      
+    case 3: // 500円/1000円 ⇄ 100円
+      if (rand(1, 2) === 1) {
+        return isReverse ? { source: Array(5).fill(100), allowed: [500] } : { source: [500], allowed: [100] };
+      } else {
+        return isReverse ? { source: Array(10).fill(100), allowed: [1000] } : { source: [1000], allowed: [100] };
+      }
+
+    case 4: // 10円2~3枚 ⇄ 1円
+      const count1 = rand(2, 3);
+      return isReverse ? { source: Array(count1 * 10).fill(1), allowed: [10, 5] } : { source: Array(count1).fill(10), allowed: [1] };
+
+    case 5: // 100円2~3枚 ⇄ 10円
+      const count2 = rand(2, 3);
+      return isReverse ? { source: Array(count2 * 10).fill(10), allowed: [100, 50] } : { source: Array(count2).fill(100), allowed: [10] };
+
+    case 6: // 500円玉2枚(1000円) ⇄ 100円
+      return isReverse ? { source: Array(10).fill(100), allowed: [500, 1000] } : { source: [500, 500], allowed: [100] };
+
+    case 7: // 50円+10円 ⇄ 10円や5円
+      return isReverse ? { source: Array(6).fill(10), allowed: [50, 10] } : { source: [50, 10], allowed: [10, 5] };
+
+    case 8: // 500円+50円 ⇄ 100円と10円
+      return isReverse ? { source: [100, 100, 100, 100, 100, 50], allowed: [500, 100] } : { source: [500, 50], allowed: [100, 10] };
+
+    case 9: // 1000円 ⇄ 500円と100円
+      return isReverse ? { source: [500, 100, 100, 100, 100, 100], allowed: [1000] } : { source: [1000], allowed: [500, 100] };
+
+    case 10: // 1000円+500円 ⇄ 500円と100円
+      return isReverse ? { source: [500, 500, 500], allowed: [1000, 500] } : { source: [1000, 500], allowed: [500, 100, 50] };
+
+    default:
+      return { source: [100], allowed: [10] };
+  }
+}
+function setupExchangeTrays() {
+  const container = document.getElementById('exchange-trays-container');
+  container.innerHTML = '';
+  
+  exchangeAllowedCoins.forEach(val => {
+    const html = createMoneyHTML(val, false);
+    const temp = document.createElement('div');
+    temp.innerHTML = html.trim();
+    const moneyEl = temp.firstChild;
+    
+    // ドラッグ＆タップで両替枠へ追加
+    setupExchangeDragAndTap(moneyEl, val, 'add');
+    container.appendChild(moneyEl);
+  });
+}
+
+function setupExchangeDragAndTap(el, val, mode, index = 0) {
+  let isDragging = false;
+  let startX = 0, startY = 0;
+  let hasHandledTap = false;
+
+  const handleStart = (e) => {
+    if (e.type === 'mousedown' && hasHandledTap) {
+      hasHandledTap = false;
+      return;
+    }
+    const point = e.touches ? e.touches[0] : e;
+    startX = point.clientX;
+    startY = point.clientY;
+    isDragging = false;
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('touchend', handleEnd);
+  };
+
+  const handleMove = (e) => {
+    const point = e.touches ? e.touches[0] : e;
+    const dx = point.clientX - startX;
+    const dy = point.clientY - startY;
+
+    if (!isDragging && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) {
+      isDragging = true;
+      activeClone = el.cloneNode(true);
+      activeClone.classList.add('dragging-clone');
+      document.body.appendChild(activeClone);
+    }
+
+    if (isDragging && activeClone) {
+      if (e.cancelable) e.preventDefault();
+      activeClone.style.left = `${point.clientX}px`;
+      activeClone.style.top = `${point.clientY}px`;
+    }
+  };
+
+  const handleEnd = (e) => {
+    document.removeEventListener('mousemove', handleMove);
+    document.removeEventListener('mouseup', handleEnd);
+    document.removeEventListener('touchmove', handleMove);
+    document.removeEventListener('touchend', handleEnd);
+
+    if (isDragging && activeClone) {
+      const point = e.changedTouches ? e.changedTouches[0] : e;
+      activeClone.remove();
+      activeClone = null;
+
+      const dropTarget = document.elementFromPoint(point.clientX, point.clientY);
+      
+      if (mode === 'add') {
+        const targetBox = dropTarget ? dropTarget.closest('#exchange-target-area') : null;
+        if (targetBox) {
+          addExchangeCoin(val);
+        }
+      } else if (mode === 'remove') {
+        const targetBox = dropTarget ? dropTarget.closest('#exchange-target-area') : null;
+        if (!targetBox) {
+          removeExchangeCoin(index);
+        }
+      }
+    } else {
+      if (e.type === 'touchend') {
+        hasHandledTap = true;
+        setTimeout(() => { hasHandledTap = false; }, 400);
+      }
+      if (mode === 'add') {
+        addExchangeCoin(val);
+      } else if (mode === 'remove') {
+        removeExchangeCoin(index);
+      }
+    }
+  };
+
+  el.addEventListener('mousedown', handleStart);
+  el.addEventListener('touchstart', handleStart, { passive: true });
+}
+
+function addExchangeCoin(val) {
+  // レベル4以降などで枚数が増えるため上限を30枚に拡張
+  if (exchangeInsertedCoins.length >= 30) {
+    showAlertModal("これ以上 はいりません！");
+    return;
+  }
+  exchangeInsertedCoins.push(val);
+  updateExchangeTargetUI();
+}
+
+function removeExchangeCoin(index) {
+  exchangeInsertedCoins.splice(index, 1);
+  updateExchangeTargetUI();
+}
+
+function updateExchangeTargetUI() {
+  const targetArea = document.getElementById('exchange-target-area');
+  targetArea.innerHTML = '';
+  
+  let currentTotal = 0;
+  
+  exchangeInsertedCoins.forEach((val, idx) => {
+    currentTotal += val;
+    const html = createMoneyHTML(val, true);
+    const temp = document.createElement('div');
+    temp.innerHTML = html.trim();
+    const moneyEl = temp.firstChild;
+    
+    // タップ・ドラッグで枠外へ出す
+    setupExchangeDragAndTap(moneyEl, val, 'remove', idx);
+    targetArea.appendChild(moneyEl);
+  });
+
+  document.getElementById('exchange-target-total').innerText = currentTotal;
+}
+
+function checkExchangeAnswer() {
+  const currentTotal = exchangeInsertedCoins.reduce((sum, v) => sum + v, 0);
+  
+  if (currentTotal === 0) {
+    showAlertModal("おかねを いれてね！");
+    return;
+  }
+
+  if (currentTotal === exchangeSourceTotal) {
+    const eff = document.getElementById('effect-ok');
+    eff.style.display = 'flex';
+    setTimeout(() => {
+      eff.style.display = 'none';
+      initExchangeQuestion();
+    }, 1500);
+  } else {
+    document.getElementById('effect-ng').style.display = 'flex';
+  }
+}
+</script>
+</body>
+</html>
