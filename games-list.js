@@ -17,7 +17,7 @@ const GAMES_DATA = [
         category: "ゆびさき・なぞり",
         bgColor: "bg-amber-100",
         targetAge: "幼児〜小学生・療育向け",
-        isNew: true
+        isNew: false
     },
     {
         title: "かたはめ パズル",
@@ -27,7 +27,7 @@ const GAMES_DATA = [
         category: "かたち・パズル",
         bgColor: "bg-emerald-100",
         targetAge: "幼児〜小学生・療育向け",
-        isNew: true
+        isNew: false
     },
     {
         title: "いろあわせゲーム",
@@ -36,6 +36,36 @@ const GAMES_DATA = [
         icon: "🎨",
         category: "いろ・分類",
         bgColor: "bg-rose-100",
+        targetAge: "幼児〜小学生・療育向け",
+        isNew: false
+    },
+    {
+        title: "サイコロ計算バトル",
+        description: "サイコロを ふって けいさん こうげき！たしざん・ひきざん・かけざんで モンスターを たおそう！",
+        file: "dice-battle.html",
+        icon: "🎲",
+        category: "かず・けいさん",
+        bgColor: "bg-purple-100",
+        targetAge: "小学生・算数トレーニング",
+        isNew: true
+    },
+    {
+        title: "四則計算トレーニング",
+        description: "たしざん・ひきざん・かけざん・わりざんを じゆうな はんいで れんしゅう！ぶんしょうだいや タイムアタックもあるよ。",
+        file: "math-training.html",
+        icon: "🧮",
+        category: "かず・けいさん",
+        bgColor: "bg-blue-100",
+        targetAge: "小学生・算数トレーニング",
+        isNew: true
+    },
+    {
+        title: "なかまあつめ Deluxe",
+        description: "おなじ なかまや かずだけ はこに いれて かぞえよう！10のまとまりも わかりやすく まなべるよ。",
+        file: "group-collect.html",
+        icon: "🐶",
+        category: "かず・分類",
+        bgColor: "bg-teal-100",
         targetAge: "幼児〜小学生・療育向け",
         isNew: true
     }
