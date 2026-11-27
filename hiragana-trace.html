@@ -1842,7 +1842,10 @@ function handlePointerUp(e) {
 
   if (evaluateCurrentStroke()) {
     commitStroke();
-} else {
+  } else {
+    if (activePointerPts.length > 2) {
+      playBuzzerSound(); // 途中で指を離したときも「ブー」音を鳴らす
+    }
     resetFailedStroke();
   }
 }
