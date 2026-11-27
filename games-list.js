@@ -78,5 +78,15 @@ const GAMES_DATA = [
         bgColor: "bg-yellow-100",
         targetAge: "幼児〜小学生・療育向け",
         isNew: true
+    },
+    {
+        title: "ひらがな なぞりがき れんしゅう",
+        description: "1もじずつや すきな たんごを ゆびで なぞって、ひらがなの かきじゅんを れんしゅうしよう！",
+        file: "hiragana-trace.html",
+        icon: "✏️",
+        category: "ことば・もじ",
+        bgColor: "bg-orange-100",
+        targetAge: "幼児〜小学生・療育向け",
+        isNew: true
     }
 ];
